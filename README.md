@@ -10,6 +10,22 @@ Runs natively on **Linux**, **macOS**, and **Windows** using **Node.js >= 18** (
 
 ---
 
+## Screenshots
+
+| Multi-Cloud Architecture Studio | BPMN 2.0 Pools & Swimlanes |
+| :---: | :---: |
+| ![Multi-Cloud Architecture Studio](docs/screenshots/01_studio_cloud.png) | ![BPMN 2.0 Pools & Swimlanes](docs/screenshots/02_bpmn_swimlanes.png) |
+
+| Interactive Presentation Mode | Dark Theme (C4 Model) |
+| :---: | :---: |
+| ![Interactive Presentation Mode](docs/screenshots/03_presentation_mode.png) | ![Dark Theme C4 Model](docs/screenshots/04_dark_c4_architecture.png) |
+
+| UML 2.5 & Session / RBAC Profile |
+| :---: |
+| ![UML 2.5 and Session RBAC Profile](docs/screenshots/05_uml_and_session.png) |
+
+---
+
 ## Quick Start
 
 ### 1. Clone & Install
