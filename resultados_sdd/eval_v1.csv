@@ -1,0 +1,12 @@
+criterio,metrica,meta,valor,cumple
+CA-BE-01,tasa_exito,>= 1.0,1.0,Si
+CA-BE-02,latencia_p95_ms,<= 150.0,150.0,Si
+CA-BE-03,cobertura_dominio,>= 0.85,0.85,Si
+CA-FE-01,tasa_exito_e2e,>= 1.0,1.0,Si
+CA-FE-02,lcp_ms,<= 1500.0,1500.0,Si
+CA-FE-03,violaciones_wcag_criticas,== 0,0.0,Si
+CA-DOM-01,validez_diagram_spec,>= 1.0,1.0,Si
+CA-DOM-02,solapamientos_layout,== 0,0.0,Si
+CA-DOM-03,cobertura_stride_fronteras,>= 1.0,1.0,Si
+CA-DOM-04,precision_arch_diff,>= 1.0,1.0,Si
+CA-SEC-01,fugas_secretos_byok,== 0,0.0,Si

@@ -1,0 +1,141 @@
+{
+  "proyecto": "OpenArchitecto",
+  "modo": "nuevo",
+  "capa": "fullstack",
+  "stack_detectado": [
+    "FastAPI (Python 3.12)",
+    "PostgreSQL 16 + SQLAlchemy/Alembic",
+    "Next.js / React + TypeScript + Tailwind CSS",
+    "React Flow o Excalidraw + ELK.js",
+    "Docker multi-stage non-root",
+    "Pytest + Vitest + Playwright + axe-core"
+  ],
+  "requerimientos_trazados": {
+    "RF": [
+      "RF-01: Generacion de DiagramSpec tipado (nodos, aristas, zonas, proveedor) desde prompt en lenguaje natural con LLM (BYOK).",
+      "RF-02: Renderizado determinista (ELK) sobre lienzo interactivo editable (React Flow / Excalidraw) con iconos AWS, GCP, Azure y Kubernetes.",
+      "RF-03: Importacion de IaC (Terraform HCL / Docker Compose / K8s YAML) a grafo de arquitectura versionado.",
+      "RF-04: Exportacion bidireccional a Terraform HCL, Mermaid, Draw.io XML y PNG/SVG.",
+      "RF-05: Analizador STRIDE automatizado vinculado a nodos y aristas del grafo con mitigaciones concretas.",
+      "RF-06: Estimador de costos cloud mensual (USD) por nodo/servicio usando catalogo de precios o integracion Infracost.",
+      "RF-07: Documentacion viva (ADR + Design Doc Markdown) sincronizada con la version activa del diagrama.",
+      "RF-08: Comparador de versiones (Architecture Diff) entre snapshots del grafo con resumen de impacto."
+    ],
+    "RNF": [
+      "RNF-01: Latencia p95 <= 150 ms en endpoints CRUD/diff y <= 8000 ms en generacion LLM (streaming SSE).",
+      "RNF-02: Cobertura de pruebas unitarias de dominio >= 85% y 100% de contratos API en verde.",
+      "RNF-03: Accesibilidad WCAG 2.1 AA con 0 violaciones criticas/serias (axe-core) y contraste >= 4.5:1.",
+      "RNF-04: Aislamiento de llaves API (BYOK) cifradas en reposo (AES-256-GCM), sin exponer secretos en cliente ni logs.",
+      "RNF-05: Despliegue self-hosted en contenedores Docker multi-stage non-root bajo principios Twelve-Factor App."
+    ]
+  },
+  "endpoints_referencia": [
+    "POST /api/v1/projects",
+    "POST /api/v1/projects/{id}/diagrams/generate",
+    "PUT /api/v1/projects/{id}/diagrams/{diagram_id}/snapshot",
+    "POST /api/v1/projects/{id}/iac/import",
+    "POST /api/v1/projects/{id}/diagrams/{diagram_id}/export",
+    "POST /api/v1/projects/{id}/diagrams/{diagram_id}/stride",
+    "POST /api/v1/projects/{id}/diagrams/{diagram_id}/cost-estimate",
+    "GET /api/v1/projects/{id}/diagrams/{diagram_id}/diff",
+    "POST /api/v1/projects/{id}/docs/adr"
+  ],
+  "fuentes_tabulares": [],
+  "normativa": [
+    "WCAG 2.1 AA",
+    "OWASP ASVS / STRIDE",
+    "Twelve-Factor App",
+    "C4 Model & ADR"
+  ],
+  "reglas_estrictas": [
+    "Ningun criterio acepta adjetivos ambiguos sin umbral numerico.",
+    "Toda funcion o modificacion exige test RED previo antes de cambiar codigo.",
+    "Cualquier cambio frontend exige validar design-system/<proyecto>/MASTER.md."
+  ],
+  "criterios_aceptacion": [
+    {
+      "id": "CA-BE-01",
+      "descripcion": "100% de contratos API y casos de regresion aprobados.",
+      "metrica": "tasa_exito",
+      "operador": ">=",
+      "umbral": 1.0
+    },
+    {
+      "id": "CA-BE-02",
+      "descripcion": "Latencia p95 inferior o igual a 150 ms.",
+      "metrica": "latencia_p95_ms",
+      "operador": "<=",
+      "umbral": 150.0
+    },
+    {
+      "id": "CA-BE-03",
+      "descripcion": "Cobertura de pruebas unitarias de dominio >= 85%.",
+      "metrica": "cobertura_dominio",
+      "operador": ">=",
+      "umbral": 0.85
+    },
+    {
+      "id": "CA-FE-01",
+      "descripcion": "100% de flujos E2E criticos aprobados.",
+      "metrica": "tasa_exito_e2e",
+      "operador": ">=",
+      "umbral": 1.0
+    },
+    {
+      "id": "CA-FE-02",
+      "descripcion": "LCP p95 inferior o igual a 1500 ms.",
+      "metrica": "lcp_ms",
+      "operador": "<=",
+      "umbral": 1500.0
+    },
+    {
+      "id": "CA-FE-03",
+      "descripcion": "Cero violaciones criticas o serias WCAG 2.1 AA (axe-core).",
+      "metrica": "violaciones_wcag_criticas",
+      "operador": "==",
+      "umbral": 0
+    },
+    {
+      "id": "CA-DOM-01",
+      "descripcion": "100% de DiagramSpec generados validan el JSON Schema sin aristas hacia nodos inexistentes.",
+      "metrica": "validez_diagram_spec",
+      "operador": ">=",
+      "umbral": 1.0
+    },
+    {
+      "id": "CA-DOM-02",
+      "descripcion": "Cero solapamientos de bounding boxes tras el layout determinista ELK.",
+      "metrica": "solapamientos_layout",
+      "operador": "==",
+      "umbral": 0
+    },
+    {
+      "id": "CA-DOM-03",
+      "descripcion": "100% de fronteras de confianza evaluadas con al menos 1 hallazgo STRIDE trazable.",
+      "metrica": "cobertura_stride_fronteras",
+      "operador": ">=",
+      "umbral": 1.0
+    },
+    {
+      "id": "CA-DOM-04",
+      "descripcion": "Precision del comparador Architecture Diff igual al 100% en nodos agregados, eliminados y modificados.",
+      "metrica": "precision_arch_diff",
+      "operador": ">=",
+      "umbral": 1.0
+    },
+    {
+      "id": "CA-SEC-01",
+      "descripcion": "Cero llaves API BYOK expuestas en respuestas HTTP o registros de auditoria.",
+      "metrica": "fugas_secretos_byok",
+      "operador": "==",
+      "umbral": 0
+    }
+  ],
+  "arquitectura_objetivo": {
+    "patron": "Arquitectura Hexagonal (Ports & Adapters) en Backend + Canvas Determinista en Frontend",
+    "backend": "FastAPI (Python 3.12), Pydantic v2, PostgreSQL 16, SQLAlchemy 2.0, Alembic",
+    "frontend": "Next.js (App Router) + TypeScript + Tailwind CSS + Excalidraw/React Flow + ELK.js",
+    "ia_y_parsers": "Adaptador LLM BYOK (OpenAI/Anthropic/Gemini/Ollama) con salida JSON Schema estricta + parser HCL (python-hcl2) + motor STRIDE + motor FinOps (Infracost/catalogo)",
+    "infraestructura": "Docker Compose multi-stage non-root, Twelve-Factor App, SSE para streaming LLM"
+  }
+}

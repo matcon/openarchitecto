@@ -1,0 +1,10 @@
+{
+  "proyecto": "OpenArchitecto",
+  "modo": "nuevo",
+  "version": "v1",
+  "veredicto": "APROBADO",
+  "aprobados": 11,
+  "total": 11,
+  "avisos_ambiguedad": [],
+  "timestamp_utc": "2026-11-20T02:42:01.272681+00:00"
+}

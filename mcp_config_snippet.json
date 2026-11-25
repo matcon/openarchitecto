@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "openarchitecto": {
+      "command": "node",
+      "args": [
+        "/ABSOLUTE/PATH/TO/openarchitecto/dist/mcp-server.js"
+      ],
+      "env": {
+        "OPENARCHITECTO_DIAGRAMS_DIR": "/ABSOLUTE/PATH/TO/openarchitecto/diagrams"
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+id_item,fase,ok,fail,cobertura,valido,nota
+TC-01-DiagramSpec,RED,0,1,0.15,True,Fallo inicial antes de validar aristas
+TC-01-DiagramSpec,GREEN,2,0,0.9,True,Validador de grafo implementado
+TC-01-DiagramSpec,REFACTOR,2,0,0.93,True,Refactor con validacion de nodos vacios
+TC-04-STRIDE,RED,0,1,0.2,True,Sin motor STRIDE
+TC-04-STRIDE,GREEN,1,0,0.88,True,Deteccion de cruce de trust_zone
+TC-04-STRIDE,REFACTOR,1,0,0.91,True,Mitigacion estructurada por arista
+TC-05-FinOps,RED,0,1,0.2,True,Sin estimador de costos
+TC-05-FinOps,GREEN,1,0,0.89,True,Calculo mensual determinista
+TC-05-FinOps,REFACTOR,1,0,0.92,True,Desglose redondeado por nodo
+TC-06-ArchDiff,RED,0,1,0.25,True,Sin comparador de snapshots
+TC-06-ArchDiff,GREEN,1,0,0.9,True,Diff exacto v1 vs v2
+TC-06-ArchDiff,REFACTOR,1,0,0.94,True,Orden determinista de salidas

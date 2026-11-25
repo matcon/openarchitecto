@@ -1,0 +1,2643 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architect Studio Pro — Diagramador Multi-Cloud, BPMN 2.0, UML &amp; Draw.io</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #F8FAFC;
+      color: #1E293B;
+    }
+    /* Minimal structural fallback if Tailwind CDN is unreachable offline */
+    .hidden { display: none !important; }
+    #diagram-svg { touch-action: none; user-select: none; -webkit-user-select: none; }
+    .canvas-grid-light {
+      background-color: #FFFFFF;
+      background-image: radial-gradient(#CBD5E1 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    .canvas-grid-dark {
+      background-color: #1A232E;
+      background-image: radial-gradient(#334155 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    .svg-node { cursor: move; }
+    .svg-node:hover .node-hover-ring { opacity: 1; }
+    .svg-edge { cursor: pointer; }
+    .svg-edge:hover .edge-hit { stroke: rgba(140, 79, 255, 0.28); }
+    .resize-handle { cursor: nwse-resize; }
+    .port-handle { cursor: crosshair; opacity: 0; transition: opacity 0.12s ease; }
+    .svg-node:hover .port-handle, .connect-mode .port-handle { opacity: 1; }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+    .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+    .pres-glow-ring {
+      animation: pulse-ring 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse-ring {
+      0%, 100% { opacity: 0.95; stroke-width: 3.5px; }
+      50% { opacity: 0.35; stroke-width: 1.5px; }
+    }
+    @media (max-width: 1024px) {
+      #left-sidebar { width: 240px !important; }
+      #right-inspector { width: 240px !important; }
+    }
+  </style>
+</head>
+<body class="flex flex-col h-screen w-screen overflow-hidden">
+
+  <!-- Top Toolbar -->
+  <header class="min-h-12 py-1 bg-[#232F3E] text-white flex flex-wrap items-center justify-between px-3 gap-2 shrink-0 border-b border-slate-700 z-20">
+    <div class="flex items-center gap-2.5 min-w-0">
+      <div class="w-7 h-7 rounded bg-gradient-to-tr from-[#ED7100] to-[#FF9900] flex items-center justify-center font-bold text-xs tracking-tight shrink-0 shadow-md">ARCH</div>
+      <div class="leading-tight truncate">
+        <div class="text-sm font-bold tracking-tight truncate flex items-center gap-1.5">
+          <span>OpenArchitecto Studio</span>
+          <span class="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">SUITE V2.1</span>
+        </div>
+        <div class="text-[10px] text-slate-300 truncate hidden sm:block">BPMN 2.0 • Multi-Cloud • UML • C4 Model • ERD • Flowcharts • MCP</div>
+      </div>
+    </div>
+
+    <!-- Mode & View Controls -->
+    <div class="flex items-center gap-1 bg-slate-800/80 p-1 rounded-md">
+      <button id="btn-tool-select" type="button" title="Seleccionar y Mover (V)" class="px-2.5 py-1 rounded text-xs font-medium bg-[#ED7100] text-white transition">Mover</button>
+      <button id="btn-tool-connect" type="button" title="Conectar Elementos (C)" class="px-2.5 py-1 rounded text-xs font-medium text-slate-200 hover:bg-slate-700 transition">Conectar</button>
+      <div class="w-px h-4 bg-slate-600 mx-0.5"></div>
+      <button id="btn-undo" type="button" title="Deshacer (Ctrl+Z)" class="px-2 py-1 rounded text-xs text-slate-200 hover:bg-slate-700 transition">Deshacer</button>
+      <button id="btn-redo" type="button" title="Rehacer (Ctrl+Y / Ctrl+Shift+Z)" class="px-2 py-1 rounded text-xs text-slate-200 hover:bg-slate-700 transition">Rehacer</button>
+      <button id="btn-theme" type="button" title="Cambiar fondo Claro / Oscuro" class="px-2 py-1 rounded text-xs text-slate-200 hover:bg-slate-700 transition">Fondo: Claro</button>
+    </div>
+
+    <!-- Actions: Templates, NLP, Server Sync, Export, Present & User -->
+    <div class="flex items-center gap-1.5 shrink-0">
+      <button id="btn-templates" type="button" class="px-2.5 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-xs font-medium transition flex items-center gap-1">
+        <span>📐</span> Plantillas
+      </button>
+      <button id="btn-server-sync" type="button" class="px-2.5 py-1.5 rounded bg-indigo-700 hover:bg-indigo-600 text-xs font-medium transition flex items-center gap-1">
+        <span>🔄</span> Servidor / MCP
+      </button>
+      <button id="btn-nlp" type="button" class="px-2.5 py-1.5 rounded bg-[#8C4FFF] hover:bg-[#7A3CE8] text-xs font-medium transition">
+        Texto a Diagrama
+      </button>
+      <button id="btn-present" type="button" title="Iniciar Modo Presentación (P)" class="px-2.5 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white transition flex items-center gap-1 shadow-sm">
+        <span>▶</span> Presentar
+      </button>
+
+      <div class="relative">
+        <button id="btn-export-menu" type="button" aria-haspopup="menu" aria-expanded="false" class="px-3 py-1.5 rounded bg-[#ED7100] hover:bg-[#D66600] text-xs font-semibold transition flex items-center gap-1 shadow-sm">
+          Exportar <span>▾</span>
+        </button>
+        <div id="export-dropdown" role="menu" class="hidden absolute right-0 mt-1.5 w-60 bg-white text-slate-800 rounded-lg shadow-xl border border-slate-200 py-1 z-50">
+          <button id="exp-drawio" role="menuitem" type="button" class="w-full text-left px-3 py-2 text-xs hover:bg-orange-50 flex items-center justify-between">
+            <span class="font-semibold text-slate-800">Draw.io (.drawio)</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 font-semibold">Oficial</span>
+          </button>
+          <button id="exp-svg" role="menuitem" type="button" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-center justify-between">
+            <span class="font-medium">SVG Vectorial (.svg)</span>
+            <span class="text-[10px] text-slate-600">Escalable</span>
+          </button>
+          <button id="exp-png" role="menuitem" type="button" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-center justify-between">
+            <span class="font-medium">Imagen PNG 2x (.png)</span>
+            <span class="text-[10px] text-slate-600">HiDPI</span>
+          </button>
+          <div class="my-1 border-t border-slate-100"></div>
+          <button id="exp-save-srv" role="menuitem" type="button" class="w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 flex items-center justify-between">
+            <span class="font-medium text-indigo-700">Guardar en Servidor (MCP)</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">REST</span>
+          </button>
+          <button id="exp-load-srv" role="menuitem" type="button" class="w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 flex items-center justify-between">
+            <span class="font-medium text-indigo-700">Cargar desde Servidor (MCP)</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">REST</span>
+          </button>
+          <div class="my-1 border-t border-slate-100"></div>
+          <button id="exp-json" role="menuitem" type="button" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50">Descargar Archivo (.json)</button>
+          <button id="imp-json" role="menuitem" type="button" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-50">Cargar Archivo Local (.json)</button>
+        </div>
+      </div>
+
+      <!-- Live Date & Clock -->
+      <div id="live-clock-badge" class="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800/90 text-[11px] font-mono text-emerald-300 border border-slate-700/60 shadow-xs" title="Hora Local del Sistema">
+        <span>🕒</span>
+        <span id="live-clock-text">--:--:--</span>
+      </div>
+
+      <!-- User Profile & Login Badge -->
+      <button id="btn-login-profile" type="button" class="flex items-center gap-2 pl-2 border-l border-slate-700 cursor-pointer hover:opacity-90 bg-transparent text-left" title="Sesión de Usuario & Roles">
+        <div id="header-avatar" class="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-xs text-white shadow-xs">A</div>
+        <div class="hidden lg:block leading-tight text-left">
+          <div id="header-user-name" class="text-xs font-semibold text-slate-100 flex items-center gap-1">
+            <span>Architect</span>
+            <span id="header-status-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          </div>
+          <div id="header-user-role" class="text-[9px] text-slate-300">Staff Architect</div>
+        </div>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <div class="flex flex-1 min-h-0 overflow-hidden">
+
+    <!-- Left Sidebar: Categorized Engineering Palette -->
+    <aside id="left-sidebar" class="w-80 bg-white border-r border-slate-200 flex flex-col shrink-0 z-10" style="width: 310px;">
+      
+      <!-- Domain Selector Header -->
+      <div class="p-3 border-b border-slate-200 bg-slate-50/80 space-y-2">
+        <div>
+          <label for="domain-select" class="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">Disciplina / Tipo de Diagrama:</label>
+          <select id="domain-select" class="w-full px-2.5 py-1.5 text-xs font-semibold rounded-md border border-slate-300 bg-white text-slate-800 shadow-xs focus:outline-none focus:border-[#ED7100]">
+            <option value="bpmn" selected>⚙️ BPMN 2.0 (Procesos de Negocio)</option>
+            <option value="cloud">☁️ Multi-Cloud &amp; Kubernetes</option>
+            <option value="uml">📐 UML 2.5 (Clases, Secuencia, Casos)</option>
+            <option value="c4">🏗️ C4 Model (Arquitectura Software)</option>
+            <option value="erd">🗄️ ERD (Entidad-Relación / Bases Datos)</option>
+            <option value="flowchart">🔀 Diagrama de Flujo (Algoritmos / Decisión)</option>
+            <option value="groups">🔲 Zonas, Pools y Contenedores</option>
+            <option value="all">🌟 Todos los Componentes</option>
+          </select>
+        </div>
+        <div class="relative">
+          <input id="catalog-search" type="text" placeholder="Buscar en esta disciplina..." class="w-full pl-7 pr-2.5 py-1.5 text-xs rounded border border-slate-300 focus:outline-none focus:border-[#ED7100]" />
+          <span class="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+        </div>
+      </div>
+
+      <!-- Categorized Components List -->
+      <div id="catalog-list" class="flex-1 overflow-y-auto custom-scroll p-2.5 space-y-4"></div>
+
+      <!-- Sidebar Footer Help -->
+      <div class="p-2 border-t border-slate-200 bg-slate-50 text-[10px] text-slate-500 leading-snug flex items-center justify-between">
+        <span>💡 Arrastra zonas/pools para mover su contenido</span>
+        <span id="cat-count-badge" class="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-bold">0</span>
+      </div>
+    </aside>
+
+    <!-- Center Interactive Canvas -->
+    <main class="flex-1 relative overflow-hidden flex flex-col min-w-0">
+      <!-- Floating status / zoom bar -->
+      <div class="absolute bottom-3 left-3 z-10 flex items-center gap-1.5 bg-white/95 backdrop-blur border border-slate-200 rounded-lg shadow-sm px-2 py-1 text-xs">
+        <button id="btn-zoom-out" type="button" class="w-6 h-6 rounded hover:bg-slate-100 font-bold text-slate-700">−</button>
+        <span id="zoom-label" class="w-11 text-center font-mono text-[11px] text-slate-700">85%</span>
+        <button id="btn-zoom-in" type="button" class="w-6 h-6 rounded hover:bg-slate-100 font-bold text-slate-700">+</button>
+        <button id="btn-fit" type="button" class="px-2 h-6 rounded hover:bg-slate-100 text-[11px] font-medium text-slate-600 border-l border-slate-200 ml-0.5">Ajustar</button>
+      </div>
+
+      <!-- Connect mode banner -->
+      <div id="connect-banner" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-[#232F3E] text-white text-xs px-3.5 py-1.5 rounded-full shadow-lg flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-[#ED7100] animate-pulse"></span>
+        <span id="connect-banner-text">Modo Conectar: haz clic en el elemento origen y luego en el destino</span>
+        <button id="btn-cancel-connect" type="button" class="ml-1 text-slate-300 hover:text-white font-bold">✕</button>
+      </div>
+
+      <!-- Canvas SVG Viewport -->
+      <div id="canvas-viewport" class="flex-1 w-full h-full canvas-grid-light overflow-hidden relative">
+        <svg id="diagram-svg" class="w-full h-full block" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arr-primary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#232F3E" />
+            </marker>
+            <marker id="arr-primary-dark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#E2E8F0" />
+            </marker>
+            <marker id="arr-async" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#147EBA" />
+            </marker>
+            <marker id="arr-sec" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#DD344C" />
+            </marker>
+            <marker id="arr-emerald" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#10B981" />
+            </marker>
+            <filter id="glow-emerald" x="-30%" y="-30%" width="160%" height="160%">
+              <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#10B981" flood-opacity="0.9"/>
+            </filter>
+          </defs>
+          <g id="viewport-transform">
+            <g id="layer-groups"></g>
+            <g id="layer-edges"></g>
+            <g id="layer-nodes"></g>
+          </g>
+        </svg>
+      </div>
+    </main>
+
+    <!-- Right Inspector Panel -->
+    <aside id="right-inspector" class="w-72 bg-white border-l border-slate-200 flex flex-col shrink-0 z-10">
+      <div class="p-3 border-b border-slate-200 flex items-center justify-between">
+        <div class="text-xs font-bold uppercase tracking-wide text-slate-700">Inspector de Propiedades</div>
+        <button id="btn-clear-canvas" type="button" class="text-[11px] text-rose-600 hover:text-rose-700 font-semibold">Limpiar</button>
+      </div>
+      <div id="inspector-body" class="flex-1 overflow-y-auto custom-scroll p-3 space-y-4"></div>
+    </aside>
+
+  </div>
+
+  <!-- Templates Modal -->
+  <div id="modal-templates" role="dialog" aria-modal="true" aria-labelledby="title-modal-templates" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]">
+      <div class="px-5 py-3.5 bg-[#232F3E] text-white flex items-center justify-between shrink-0">
+        <h2 id="title-modal-templates" class="text-sm font-bold flex items-center gap-2">
+          <span>📐</span> Catálogo Oficial de Plantillas de Arquitectura
+        </h2>
+        <button id="close-templates" type="button" aria-label="Cerrar plantillas" class="text-slate-300 hover:text-white text-sm font-bold">✕</button>
+      </div>
+      <div id="templates-grid" class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto custom-scroll"></div>
+    </div>
+  </div>
+
+  <!-- Server Sync / MCP Modal -->
+  <div id="modal-server-sync" role="dialog" aria-modal="true" aria-labelledby="title-modal-sync" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]">
+      <div class="px-5 py-3.5 bg-indigo-900 text-white flex items-center justify-between shrink-0">
+        <h2 id="title-modal-sync" class="text-sm font-bold flex items-center gap-2">
+          <span>🔄</span> Almacenamiento Local del Servidor &amp; MCP
+        </h2>
+        <button id="close-server-sync" type="button" aria-label="Cerrar sincronización" class="text-slate-300 hover:text-white text-sm font-bold">✕</button>
+      </div>
+      <div class="p-4 space-y-3">
+        <p class="text-xs text-slate-600">Diagramas sincronizados con el servidor HTTP local y el servidor MCP en la carpeta de diagramas configurada.</p>
+        <div class="flex items-center gap-2">
+          <input id="srv-save-name" type="text" placeholder="Nombre de archivo o título..." class="flex-1 px-2.5 py-1.5 rounded border border-slate-300 text-xs focus:outline-none focus:border-indigo-600" />
+          <button id="btn-save-current-to-server" type="button" class="px-3 py-1.5 rounded text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs shrink-0">
+            + Guardar Actual
+          </button>
+        </div>
+        <div id="server-diagrams-list" class="space-y-2 overflow-y-auto custom-scroll max-h-[45vh] border border-slate-100 rounded-lg p-2 bg-slate-50"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Text-to-Diagram Modal -->
+  <div id="modal-nlp" role="dialog" aria-modal="true" aria-labelledby="title-modal-nlp" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden">
+      <div class="px-5 py-3.5 bg-[#232F3E] text-white flex items-center justify-between">
+        <h2 id="title-modal-nlp" class="text-sm font-bold">Generador Texto a Diagrama</h2>
+        <button id="close-nlp" type="button" aria-label="Cerrar generador" class="text-slate-300 hover:text-white text-sm font-bold">✕</button>
+      </div>
+      <div class="p-4 space-y-3">
+        <p class="text-xs text-slate-600">Describe componentes conectados con flechas (<code>A -&gt; B -&gt; C</code>) o una disciplina (BPMN, Cloud, UML, C4, Flowchart). El motor generará nodos, zonas y pasos automáticamente.</p>
+        <textarea id="nlp-input" rows="4" class="w-full p-2.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:border-[#8C4FFF]" placeholder="Ej: Usuario -> Cloudflare WAF -> API Gateway -> Auth Service -> PostgreSQL"></textarea>
+        <div class="flex flex-wrap gap-1.5">
+          <button data-preset="Inicio Solicitud -> Ingresar Datos -> Validar Regla XOR -> Procesar Servicio -> Emitir Documento -> Fin" type="button" class="nlp-preset text-[11px] px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700">BPMN Flujo</button>
+          <button data-preset="Usuario -> Cloudflare WAF -> Caddy ALB -> Backend API -> PostgreSQL RDS -> MinIO S3" type="button" class="nlp-preset text-[11px] px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700">Cloud Zero Trust</button>
+          <button data-preset="Diagrama de clases UML con Entidades, Contratos e Interfaces" type="button" class="nlp-preset text-[11px] px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700">UML Clases</button>
+          <button data-preset="C4 Model Container con Usuario -> Single-Page App React -> API Backend -> Base de Datos Postgres" type="button" class="nlp-preset text-[11px] px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700">C4 Containers</button>
+        </div>
+        <div class="flex justify-end gap-2 pt-1">
+          <button id="cancel-nlp" type="button" class="px-3 py-1.5 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700">Cancelar</button>
+          <button id="run-nlp" type="button" class="px-4 py-1.5 rounded text-xs font-semibold bg-[#8C4FFF] hover:bg-[#7A3CE8] text-white">Generar Diagrama</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Presentation Mode Fullscreen HUD Overlay (Transparent Center for High Diagram Contrast) -->
+  <div id="presentation-mode" class="hidden fixed inset-0 z-40 bg-transparent flex flex-col pointer-events-none transition-all">
+    <!-- Top HUD Navigation -->
+    <div class="h-14 px-6 flex items-center justify-between pointer-events-auto bg-slate-900/95 border-b border-slate-800 text-white shadow-xl">
+      <div class="flex items-center gap-3 min-w-0">
+        <span class="flex h-3 w-3 relative shrink-0">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+        </span>
+        <div class="min-w-0">
+          <div id="pres-diag-title" class="text-sm font-bold tracking-tight truncate">Arquitectura</div>
+          <div id="pres-timestamp" class="text-[10px] font-mono text-emerald-400">--</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button id="pres-btn-prev" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition">◀ Anterior</button>
+        <span id="pres-step-indicator" class="font-mono text-xs px-3 py-1 rounded-lg bg-slate-800 text-emerald-300 font-bold border border-slate-700">1 / 1</span>
+        <button id="pres-btn-next" type="button" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white shadow-sm transition">Siguiente ▶</button>
+        <button id="pres-btn-autoplay" type="button" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 transition">▶ Auto</button>
+        <div class="w-px h-5 bg-slate-700 mx-1"></div>
+        <button id="pres-btn-exit" type="button" class="px-3 py-1.5 rounded-lg bg-red-950/80 hover:bg-red-800 text-xs font-bold text-red-200 border border-red-800/40 transition">✕ Salir (Esc)</button>
+      </div>
+    </div>
+
+    <!-- Center Viewport Spacer -->
+    <div class="flex-1"></div>
+
+    <!-- Bottom Explanatory Presentation Card -->
+    <div class="p-5 flex justify-center pointer-events-auto">
+      <div id="pres-step-card" class="max-w-2xl w-full bg-slate-900/95 border border-slate-700/80 rounded-2xl p-4 shadow-2xl backdrop-blur-md text-white flex items-center gap-4 transition-all">
+        <div id="pres-step-num" class="w-12 h-12 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center font-extrabold text-lg text-white shrink-0 shadow-lg">1</div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center justify-between mb-1 gap-2">
+            <div id="pres-step-label" class="text-xs font-bold text-emerald-400 uppercase tracking-wide truncate">Paso 1</div>
+            <div id="pres-step-time" class="text-[10px] font-mono text-slate-300 shrink-0">--:--:--</div>
+          </div>
+          <div id="pres-step-detail" class="text-sm font-semibold text-slate-100 truncate">Origen ➔ Destino</div>
+          <div id="pres-step-actor" class="text-xs text-slate-300 truncate mt-0.5">Responsable: Arquitectura</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Login & Profile Modal -->
+  <div id="modal-login" role="dialog" aria-modal="true" aria-labelledby="title-modal-login" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden flex flex-col">
+      <div class="px-5 py-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center font-bold text-sm shadow-sm">🔐</div>
+          <div>
+            <h2 id="title-modal-login" class="text-sm font-bold">Autenticación de Arquitectura</h2>
+            <p class="text-[10px] text-slate-300">Perfil de Presentación &amp; Sesión</p>
+          </div>
+        </div>
+        <button id="close-login" type="button" aria-label="Cerrar login" class="text-slate-300 hover:text-white text-sm font-bold">✕</button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div>
+          <label for="login-name" class="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">Nombre / Usuario</label>
+          <input id="login-name" type="text" value="Architect" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-600" />
+        </div>
+        <div>
+          <label for="login-role" class="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">Rol en la Presentación</label>
+          <select id="login-role" class="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-slate-300 bg-white focus:outline-none focus:border-indigo-600">
+            <option value="Staff Systems Architect">🏛️ Staff Systems Architect (Líder Técnico)</option>
+            <option value="Solutions &amp; Cloud Architect">☁️ Solutions &amp; Cloud Architect</option>
+            <option value="DevSecOps &amp; Security Lead">🛡️ DevSecOps &amp; Security Lead</option>
+            <option value="Business Process Analyst">⚙️ Business Process Analyst (BPMN)</option>
+            <option value="Reviewer / Auditor">🩺 Reviewer / Technical Auditor</option>
+            <option value="Invitado (Solo Lectura)">👁️ Invitado (Solo Lectura)</option>
+          </select>
+        </div>
+        <div>
+          <label for="login-rut" class="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">Identificador / Badge ID</label>
+          <input id="login-rut" type="text" value="ARCH-001" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 font-mono focus:outline-none focus:border-indigo-600" />
+        </div>
+        <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 text-[10px] font-mono text-slate-600 space-y-1">
+          <div class="font-bold text-slate-700 flex items-center justify-between">
+            <span>ESTADO DE SESIÓN</span>
+            <span id="login-status-pill" class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">ACTIVA</span>
+          </div>
+          <div class="truncate text-slate-600" id="login-token-preview">JWT: --</div>
+          <div class="text-slate-600" id="login-issued-at">Emisión: --</div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button id="btn-logout" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 hover:bg-red-50">Cerrar Sesión</button>
+          <button id="btn-save-login" type="button" class="px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs">Actualizar Credenciales</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden file input for JSON import -->
+  <input id="file-json-input" type="file" accept=".json,application/json" class="hidden" />
+
+  <!-- Toast -->
+  <div id="toast" role="status" aria-live="polite" class="hidden fixed bottom-4 right-4 z-50 bg-[#232F3E] text-white text-xs px-3.5 py-2 rounded-lg shadow-lg border border-slate-700"></div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    // ==================== 1. SVG GLYPHS EXTENDIDOS ====================
+    const GLYPHS = {
+      // Actores y Genéricos
+      users: '<circle cx="32" cy="22" r="7"/><path d="M18 44c0-7 6-12 14-12s14 5 14 12"/>',
+      user: '<circle cx="32" cy="21" r="7"/><path d="M18 44c0-7 6-12 14-12s14 5 14 12"/><path d="M32 34v7M28.5 37.5h7"/>',
+      client: '<rect x="15" y="16" width="34" height="22" rx="2.5"/><path d="M24 46h16M32 38v8"/>',
+      server: '<rect x="16" y="14" width="32" height="12" rx="2"/><rect x="16" y="30" width="32" height="12" rx="2"/><circle cx="22" cy="20" r="1.5"/><circle cx="22" cy="36" r="1.5"/>',
+      
+      // AWS Compute
+      ec2: '<rect x="18" y="18" width="28" height="28" rx="3"/><path d="M24 12v6M32 12v6M40 12v6M24 46v6M32 46v6M40 46v6M12 24h6M12 32h6M12 40h6M46 24h6M46 32h6M46 40h6"/>',
+      lambda: '<path d="M20 48l12-26M24 16h8l12 32M36 48h8"/>',
+      ecs: '<polygon points="32,12 50,22 50,42 32,52 14,42 14,22"/><circle cx="32" cy="32" r="7"/>',
+      fargate: '<rect x="14" y="16" width="36" height="32" rx="3"/><path d="M24 16v32M34 16v32M44 16v32M14 27h36"/>',
+      eks: '<polygon points="32,11 50,21 50,43 32,53 14,43 14,21"/><path d="M32 11v42M14 21l36 22M50 21L14 43"/>',
+      
+      // Networking
+      alb: '<circle cx="18" cy="32" r="5"/><circle cx="46" cy="18" r="4.5"/><circle cx="46" cy="32" r="4.5"/><circle cx="46" cy="46" r="4.5"/><path d="M23 32h18M23 30l18-10M23 34l18 10"/>',
+      cloudfront: '<circle cx="32" cy="32" r="18"/><ellipse cx="32" cy="32" rx="8" ry="18"/><path d="M14 32h36M18 22h28M18 42h28"/>',
+      route53: '<circle cx="32" cy="32" r="17"/><path d="M32 15v34M15 32h34"/><circle cx="32" cy="32" r="5"/>',
+      apigw: '<path d="M15 18h10v28H15M49 18H39v28h10M25 32h14"/><circle cx="32" cy="32" r="3"/>',
+      
+      // Bases de Datos & Storage
+      rds: '<ellipse cx="32" cy="18" rx="16" ry="6"/><path d="M16 18v28c0 3.3 7.2 6 16 6s16-2.7 16-6V18"/><path d="M16 32c0 3.3 7.2 6 16 6s16-2.7 16-6"/>',
+      dynamodb: '<ellipse cx="32" cy="17" rx="15" ry="5.5"/><path d="M17 17v30c0 3 6.7 5.5 15 5.5s15-2.5 15-5.5V17"/><path d="M34 24l-7 10h6l-3 10 8-11h-6z"/>',
+      redis: '<polygon points="32,12 48,28 32,44 16,28"/><path d="M22 44l10 8 10-8"/>',
+      s3: '<path d="M18 18h28l-3 28c0 2.5-5 4-11 4s-11-1.5-11-4l-3-28z"/><ellipse cx="32" cy="18" rx="14" ry="4"/><path d="M27 32h10v8H27z"/>',
+      waf: '<path d="M32 12l18 7v13c0 11-7.5 18-18 22-10.5-4-18-11-18-22V19l18-7z"/><path d="M24 31l6 6 11-12"/>',
+      kms: '<circle cx="24" cy="32" r="9"/><path d="M33 32h17M44 32v7M50 32v5"/>',
+      sqs: '<rect x="14" y="20" width="36" height="24" rx="3"/><path d="M23 20v24M32 20v24M41 20v24"/>',
+      bedrock: '<circle cx="32" cy="32" r="16"/><circle cx="26" cy="27" r="2.5"/><circle cx="38" cy="27" r="2.5"/><circle cx="32" cy="39" r="2.5"/><path d="M26 27l12 0M26 27l6 12M38 27l-6 12"/>',
+
+      // GCP & Azure & K8s
+      gcp_run: '<polygon points="32,14 48,24 48,40 32,50 16,40 16,24"/><path d="M30 22l-6 10h8l-4 10 10-12h-8z"/>',
+      gcp_storage: '<path d="M16 20h32v24H16z"/><circle cx="24" cy="32" r="3"/><path d="M34 32h10"/>',
+      az_app: '<circle cx="32" cy="32" r="16"/><ellipse cx="32" cy="32" rx="7" ry="16"/><path d="M16 32h32"/>',
+      k8s_pod: '<polygon points="32,12 50,22 50,42 32,52 14,42 14,22"/><path d="M32 12v40M14 22l36 20M50 22L14 42"/>',
+      k8s_ingress: '<circle cx="20" cy="32" r="5"/><path d="M25 32h14M35 24l8 8-8 8"/><circle cx="45" cy="32" r="3"/>',
+      kafka: '<circle cx="22" cy="22" r="4"/><circle cx="42" cy="22" r="4"/><circle cx="32" cy="42" r="4"/><path d="M25 24l14 16M39 24L25 40"/>',
+      fastapi: '<polygon points="32,14 18,34 30,34 26,50 46,28 34,28"/>',
+      react: '<ellipse cx="32" cy="32" rx="16" ry="6"/><ellipse cx="32" cy="32" rx="16" ry="6" transform="rotate(60 32 32)"/><ellipse cx="32" cy="32" rx="16" ry="6" transform="rotate(120 32 32)"/><circle cx="32" cy="32" r="3"/>',
+
+      // ==================== BPMN 2.0 GLYPHS ====================
+      bpmn_start: '<circle cx="32" cy="32" r="16" stroke-width="2.5"/><polygon points="28,24 38,32 28,40" fill="#16A34A"/>',
+      bpmn_start_msg: '<circle cx="32" cy="32" r="16" stroke-width="2"/><rect x="23" y="25" width="18" height="13" rx="1"/><path d="M23 25l9 7 9-7"/>',
+      bpmn_start_timer: '<circle cx="32" cy="32" r="16" stroke-width="2"/><path d="M32 22v10l6 3"/><circle cx="32" cy="32" r="1.5" fill="#16A34A"/>',
+      
+      bpmn_timer: '<circle cx="32" cy="32" r="17" stroke-width="1.8"/><circle cx="32" cy="32" r="13" stroke-width="1.4"/><path d="M32 24v8l5 3"/>',
+      bpmn_msg: '<circle cx="32" cy="32" r="17" stroke-width="1.8"/><circle cx="32" cy="32" r="13" stroke-width="1.4"/><rect x="24" y="26" width="16" height="11" rx="1"/><path d="M24 26l8 6 8-6"/>',
+      bpmn_error: '<circle cx="32" cy="32" r="17" stroke-width="1.8"/><circle cx="32" cy="32" r="13" stroke-width="1.4"/><polygon points="30,22 24,34 31,34 27,42 39,30 32,30"/>',
+      bpmn_link: '<circle cx="32" cy="32" r="17" stroke-width="1.8"/><circle cx="32" cy="32" r="13" stroke-width="1.4"/><polygon points="26,27 34,27 34,23 40,32 34,41 34,37 26,37"/>',
+      
+      bpmn_end: '<circle cx="32" cy="32" r="16" stroke-width="5"/><circle cx="32" cy="32" r="8" fill="#DC2626"/>',
+      bpmn_end_msg: '<circle cx="32" cy="32" r="16" stroke-width="4.5"/><rect x="23" y="25" width="18" height="13" rx="1" fill="#DC2626"/><path d="M23 25l9 7 9-7" stroke="#FFFFFF"/>',
+      bpmn_end_term: '<circle cx="32" cy="32" r="16" stroke-width="4.5"/><circle cx="32" cy="32" r="10" fill="#DC2626"/>',
+      bpmn_end_error: '<circle cx="32" cy="32" r="16" stroke-width="4.5"/><polygon points="30,22 24,34 31,34 27,42 39,30 32,30" fill="#DC2626"/>',
+
+      bpmn_user_task: '<rect x="14" y="16" width="36" height="32" rx="6"/><circle cx="32" cy="27" r="4"/><path d="M24 39c0-4 4-6 8-6s8 2 8 6"/>',
+      bpmn_service_task: '<rect x="14" y="16" width="36" height="32" rx="6"/><circle cx="32" cy="32" r="5"/><path d="M32 21v4M32 39v4M21 32h4M39 32h4M24 24l3 3M37 37l3 3M40 24l-3 3M27 37l-3 3"/>',
+      bpmn_send_task: '<rect x="14" y="16" width="36" height="32" rx="6"/><rect x="22" y="26" width="20" height="13" rx="1" fill="#232F3E"/><path d="M22 26l10 7 10-7" stroke="#FFFFFF"/>',
+      bpmn_recv_task: '<rect x="14" y="16" width="36" height="32" rx="6"/><rect x="22" y="26" width="20" height="13" rx="1"/><path d="M22 26l10 7 10-7"/>',
+      bpmn_script_task: '<rect x="14" y="16" width="36" height="32" rx="6"/><path d="M24 28l-4 4 4 4M40 28l4 4-4 4M34 26l-4 12"/>',
+      bpmn_rule_task: '<rect x="14" y="16" width="36" height="32" rx="6"/><path d="M22 25h20M22 32h20M22 39h20M28 25v14M35 25v14"/>',
+      bpmn_manual_task: '<rect x="14" y="16" width="36" height="32" rx="6"/><path d="M24 36v-6a2 2 0 0 1 4 0v6M28 30v-3a2 2 0 0 1 4 0v9M32 30v-2a2 2 0 0 1 4 0v8M36 32v-1a2 2 0 0 1 4 0v7"/>',
+
+      bpmn_gw_xor: '<polygon points="32,14 50,32 32,50 14,32"/><path d="M26 26l12 12M38 26L26 38" stroke-width="3"/>',
+      bpmn_gw_and: '<polygon points="32,14 50,32 32,50 14,32"/><path d="M32 22v20M22 32h20" stroke-width="3"/>',
+      bpmn_gw_or: '<polygon points="32,14 50,32 32,50 14,32"/><circle cx="32" cy="32" r="7" stroke-width="2.5"/>',
+      bpmn_gw_event: '<polygon points="32,14 50,32 32,50 14,32"/><circle cx="32" cy="32" r="8" stroke-width="1.8"/><circle cx="32" cy="32" r="5" stroke-width="1.2"/>',
+      bpmn_gw_complex: '<polygon points="32,14 50,32 32,50 14,32"/><path d="M32 23v18M23 32h18M26 26l12 12M38 26L26 38" stroke-width="2"/>',
+
+      bpmn_data_object: '<path d="M22 16h14l8 8v24H22z"/><path d="M36 16v8h8M26 30h12M26 36h12M26 42h8"/>',
+      bpmn_data_store: '<ellipse cx="32" cy="20" rx="14" ry="4.5"/><path d="M18 20v22c0 2.5 6.3 4.5 14 4.5s14-2 14-4.5V20M18 27c0 2.5 6.3 4.5 14 4.5s14-2 14-4.5M18 34c0 2.5 6.3 4.5 14 4.5s14-2 14-4.5"/>',
+      bpmn_annotation: '<path d="M38 18H24v28h14"/>',
+
+      // ==================== UML GLYPHS ====================
+      uml_class: '<rect x="14" y="14" width="36" height="36" rx="2"/><path d="M14 26h36M14 38h36"/>',
+      uml_interface: '<circle cx="32" cy="26" r="10"/><path d="M32 36v14"/>',
+      uml_actor: '<circle cx="32" cy="20" r="7"/><path d="M32 27v14M20 33h24M24 50l8-9 8 9"/>',
+      uml_usecase: '<ellipse cx="32" cy="32" rx="20" ry="12"/>',
+      uml_lifeline: '<rect x="20" y="14" width="24" height="14" rx="2"/><path d="M32 28v22" stroke-dasharray="3 3"/>',
+      uml_state: '<rect x="14" y="18" width="36" height="28" rx="10"/>',
+      uml_component: '<rect x="18" y="16" width="32" height="32" rx="2"/><rect x="12" y="22" width="10" height="6"/><rect x="12" y="36" width="10" height="6"/>',
+
+      // ==================== C4 MODEL GLYPHS ====================
+      c4_person: '<circle cx="32" cy="20" r="7"/><path d="M20 44c0-6 5-11 12-11s12 5 12 11"/>',
+      c4_system: '<rect x="14" y="16" width="36" height="32" rx="4"/><path d="M22 26h20M22 34h14"/>',
+      c4_container: '<rect x="14" y="16" width="36" height="32" rx="3"/><path d="M22 25l-4 4 4 4M42 25l4 4-4 4M33 23l-3 14"/>',
+      c4_db: '<ellipse cx="32" cy="20" rx="14" ry="5"/><path d="M18 20v22c0 3 6 5 14 5s14-2 14-5V20M18 31c0 3 6 5 14 5s14-2 14-5"/>',
+      c4_comp: '<rect x="16" y="16" width="32" height="32" rx="2"/><circle cx="32" cy="32" r="4"/><path d="M24 32h-6M40 32h6M32 24v-6M32 40v6"/>',
+
+      // ==================== ERD GLYPHS ====================
+      erd_table: '<rect x="14" y="16" width="36" height="32" rx="2"/><path d="M14 26h36M24 26v22"/>',
+      erd_rel: '<polygon points="32,16 48,32 32,48 16,32"/>',
+
+      // ==================== FLOWCHART GLYPHS ====================
+      fc_process: '<rect x="14" y="20" width="36" height="24" rx="1"/>',
+      fc_decision: '<polygon points="32,16 48,32 32,48 16,32"/>',
+      fc_io: '<polygon points="18,44 14,20 46,20 50,44"/>',
+      fc_term: '<rect x="16" y="22" width="32" height="20" rx="10"/>',
+      fc_doc: '<path d="M16 18h32v22c-8-4-16 4-32 0z"/>'
+    };
+
+    // ==================== 2. CATÁLOGO DE ZONAS Y CONTENEDORES ====================
+    const GROUP_CATALOG = [
+      // Zonas BPMN (Piscinas, Carriles, Subprocesos)
+      { type: 'bpmn_pool', domain: 'bpmn', name: 'BPMN Pool (Horizontal)', badge: 'POOL', stroke: '#334155', fill: '#F8FAFC', dashed: false, sub: 'Límite de Organización o Proceso' },
+      { type: 'bpmn_lane', domain: 'bpmn', name: 'BPMN Swimlane (Carril de Rol)', badge: 'LANE', stroke: '#64748B', fill: '#FFFFFF', dashed: true, sub: 'Paciente / Médico / Admisión' },
+      { type: 'bpmn_subproc', domain: 'bpmn', name: 'BPMN Subproceso Embebido', badge: 'SUB', stroke: '#334155', fill: '#FFFFFF', dashed: false, sub: 'Actividad Contenedora [+]', rx: 8 },
+      { type: 'bpmn_trans', domain: 'bpmn', name: 'BPMN Transacción / Límite', badge: 'TX', stroke: '#0284C7', fill: 'none', dashed: true, sub: 'Transacción ACID / Cancelable' },
+
+      // Zonas Multi-Cloud & K8s
+      { type: 'aws_cloud', domain: 'cloud', name: 'AWS Cloud Account', badge: 'AWS', stroke: '#232F3E', fill: 'none', dashed: false, grIcon: 'group_aws_cloud_alt', sub: 'Perímetro Cloud Principal' },
+      { type: 'vpc', domain: 'cloud', name: 'VPC Network', badge: 'VPC', stroke: '#8C4FFF', fill: 'none', dashed: false, grIcon: 'group_vpc', sub: '10.0.0.0/16 Red Privada Virtual' },
+      { type: 'public_subnet', domain: 'cloud', name: 'Public Subnet (DMZ)', badge: 'PUB', stroke: '#7AA116', fill: '#F2F6E8', dashed: false, grIcon: 'group_public_subnet', sub: '10.0.1.0/24' },
+      { type: 'private_subnet', domain: 'cloud', name: 'Private Subnet (App/Data)', badge: 'PRV', stroke: '#00A4A6', fill: '#E6F6F7', dashed: false, grIcon: 'group_private_subnet', sub: '10.0.2.0/24' },
+      { type: 'k8s_cluster', domain: 'cloud', name: 'Kubernetes Cluster / Namespace', badge: 'K8S', stroke: '#326CE5', fill: '#EEF3FD', dashed: false, grIcon: '', sub: 'Namespace production' },
+      { type: 'gcp_vpc', domain: 'cloud', name: 'Google Cloud VPC', badge: 'GCP', stroke: '#4285F4', fill: 'none', dashed: false, grIcon: '', sub: 'Google Virtual Private Cloud' },
+      { type: 'region', domain: 'cloud', name: 'Region / Multi-AZ', badge: 'REG', stroke: '#00A4A6', fill: 'none', dashed: true, grIcon: 'group_region', sub: 'us-east-1 / sa-east-1' },
+      { type: 'datacenter', domain: 'cloud', name: 'Data Center On-Premises', badge: 'DC', stroke: '#5A6C86', fill: 'none', dashed: false, grIcon: 'group_corporate_data_center', sub: 'Sala de Servidores Local' },
+
+      // Zonas UML
+      { type: 'uml_package', domain: 'uml', name: 'UML Package (Módulo)', badge: 'PKG', stroke: '#0369A1', fill: '#F0F9FF', dashed: false, sub: 'Espacio de Nombres de Clases' },
+      { type: 'uml_boundary', domain: 'uml', name: 'Límite del Sistema UML', badge: 'SYS', stroke: '#475569', fill: 'none', dashed: true, sub: 'System Boundary de Casos de Uso' },
+
+      // Zonas C4 Model
+      { type: 'c4_boundary', domain: 'c4', name: 'C4 Software System Boundary', badge: 'C4', stroke: '#1E40AF', fill: 'none', dashed: true, sub: 'Límite del Sistema de Software' },
+      { type: 'c4_enterprise', domain: 'c4', name: 'C4 Enterprise Boundary', badge: 'ENT', stroke: '#475569', fill: 'none', dashed: true, sub: 'Perímetro Corporativo' },
+
+      // Zonas ERD
+      { type: 'erd_schema', domain: 'erd', name: 'Esquema de Base de Datos', badge: 'SCH', stroke: '#0F766E', fill: 'none', dashed: true, sub: 'Esquema Relacional / Tenant' }
+    ];
+
+    // ==================== 3. CATÁLOGO DE ELEMENTOS Y NODOS ====================
+    const SERVICE_CATALOG = [
+      // ---------- BPMN 2.0 ----------
+      // Eventos de Inicio
+      { id: 'bpmn_start', domain: 'bpmn', cat: 'Eventos de Inicio', name: 'Inicio Simple', sub1: 'Start Event (Verde)', color: '#16A34A', glyph: 'bpmn_start' },
+      { id: 'bpmn_start_msg', domain: 'bpmn', cat: 'Eventos de Inicio', name: 'Inicio por Mensaje', sub1: 'Disparado por API / Evento', color: '#16A34A', glyph: 'bpmn_start_msg' },
+      { id: 'bpmn_start_timer', domain: 'bpmn', cat: 'Eventos de Inicio', name: 'Inicio por Temporizador', sub1: 'Cron / Programado', color: '#16A34A', glyph: 'bpmn_start_timer' },
+
+      // Eventos Intermedios
+      { id: 'bpmn_timer', domain: 'bpmn', cat: 'Eventos Intermedios', name: 'Temporizador Intermedio', sub1: 'Timer / Espera de tiempo', color: '#D97706', glyph: 'bpmn_timer' },
+      { id: 'bpmn_msg', domain: 'bpmn', cat: 'Eventos Intermedios', name: 'Mensaje Intermedio', sub1: 'Recepción / Envío', color: '#0284C7', glyph: 'bpmn_msg' },
+      { id: 'bpmn_error', domain: 'bpmn', cat: 'Eventos Intermedios', name: 'Captura de Error', sub1: 'Catching Error Event', color: '#DC2626', glyph: 'bpmn_error' },
+      { id: 'bpmn_link', domain: 'bpmn', cat: 'Eventos Intermedios', name: 'Enlace de Flujo', sub1: 'Link Intermediate', color: '#475569', glyph: 'bpmn_link' },
+
+      // Eventos de Fin
+      { id: 'bpmn_end', domain: 'bpmn', cat: 'Eventos de Fin', name: 'Fin Simple', sub1: 'End Event (Rojo)', color: '#DC2626', glyph: 'bpmn_end' },
+      { id: 'bpmn_end_msg', domain: 'bpmn', cat: 'Eventos de Fin', name: 'Fin con Mensaje', sub1: 'Notificación de Término', color: '#DC2626', glyph: 'bpmn_end_msg' },
+      { id: 'bpmn_end_term', domain: 'bpmn', cat: 'Eventos de Fin', name: 'Fin de Terminación', sub1: 'Aborta todas las ramas', color: '#DC2626', glyph: 'bpmn_end_term' },
+      { id: 'bpmn_end_error', domain: 'bpmn', cat: 'Eventos de Fin', name: 'Fin por Error', sub1: 'Lanza Excepción Crítica', color: '#DC2626', glyph: 'bpmn_end_error' },
+
+      // Actividades y Tareas
+      { id: 'bpmn_user_task', domain: 'bpmn', cat: 'Actividades & Tareas', name: 'Tarea de Usuario', sub1: 'Acción Humana / Formulario', color: '#3B82F6', glyph: 'bpmn_user_task' },
+      { id: 'bpmn_service_task', domain: 'bpmn', cat: 'Actividades & Tareas', name: 'Tarea de Servicio', sub1: 'Llamada API / Automática', color: '#6366F1', glyph: 'bpmn_service_task' },
+      { id: 'bpmn_send_task', domain: 'bpmn', cat: 'Actividades & Tareas', name: 'Tarea de Envío', sub1: 'Emite Mensaje / Email', color: '#2563EB', glyph: 'bpmn_send_task' },
+      { id: 'bpmn_recv_task', domain: 'bpmn', cat: 'Actividades & Tareas', name: 'Tarea de Recepción', sub1: 'Espera Mensaje Entrante', color: '#0284C7', glyph: 'bpmn_recv_task' },
+      { id: 'bpmn_script_task', domain: 'bpmn', cat: 'Actividades & Tareas', name: 'Tarea de Script', sub1: 'Ejecuta Algoritmo / Código', color: '#8B5CF6', glyph: 'bpmn_script_task' },
+      { id: 'bpmn_rule_task', domain: 'bpmn', cat: 'Actividades & Tareas', name: 'Regla de Negocio (DMN)', sub1: 'Tabla de Decisiones', color: '#0D9488', glyph: 'bpmn_rule_task' },
+      { id: 'bpmn_manual_task', domain: 'bpmn', cat: 'Actividades & Tareas', name: 'Tarea Manual', sub1: 'Acción Física sin IT', color: '#475569', glyph: 'bpmn_manual_task' },
+
+      // Compuertas (Gateways)
+      { id: 'bpmn_gw_xor', domain: 'bpmn', cat: 'Compuertas / Gateways', name: 'Compuerta Exclusiva (XOR)', sub1: 'Decisión 1 de N (✕)', color: '#EAB308', glyph: 'bpmn_gw_xor' },
+      { id: 'bpmn_gw_and', domain: 'bpmn', cat: 'Compuertas / Gateways', name: 'Compuerta Paralela (AND)', sub1: 'Bifurcación Simultánea (+)', color: '#EAB308', glyph: 'bpmn_gw_and' },
+      { id: 'bpmn_gw_or', domain: 'bpmn', cat: 'Compuertas / Gateways', name: 'Compuerta Inclusiva (OR)', sub1: 'Uno o más caminos (○)', color: '#EAB308', glyph: 'bpmn_gw_or' },
+      { id: 'bpmn_gw_event', domain: 'bpmn', cat: 'Compuertas / Gateways', name: 'Basada en Eventos', sub1: 'Espera primer evento', color: '#EAB308', glyph: 'bpmn_gw_event' },
+      { id: 'bpmn_gw_complex', domain: 'bpmn', cat: 'Compuertas / Gateways', name: 'Compuerta Compleja', sub1: 'Condición avanzada (*)', color: '#EAB308', glyph: 'bpmn_gw_complex' },
+
+      // Artefactos y Datos
+      { id: 'bpmn_data_object', domain: 'bpmn', cat: 'Artefactos & Datos', name: 'Objeto de Datos', sub1: 'Ficha / Documento / PDF', color: '#475569', glyph: 'bpmn_data_object' },
+      { id: 'bpmn_data_store', domain: 'bpmn', cat: 'Artefactos & Datos', name: 'Almacén de Datos (Store)', sub1: 'Base de Datos BPMN', color: '#475569', glyph: 'bpmn_data_store' },
+      { id: 'bpmn_annotation', domain: 'bpmn', cat: 'Artefactos & Datos', name: 'Anotación de Texto', sub1: 'Nota Explicativa [ ... ]', color: '#64748B', glyph: 'bpmn_annotation' },
+
+      // ---------- MULTI-CLOUD & KUBERNETES ----------
+      { id: 'users', domain: 'cloud', cat: 'Actores & Edge', name: 'Usuarios / Clientes', sub1: 'Web / Mobile App', color: '#232F3E', glyph: 'users', standalone: 'users' },
+      { id: 'ec2', domain: 'cloud', cat: 'AWS Compute', name: 'Amazon EC2', sub1: 'Instancia Virtual', color: '#ED7100', glyph: 'ec2', resIcon: 'ec2' },
+      { id: 'lambda', domain: 'cloud', cat: 'AWS Compute', name: 'AWS Lambda', sub1: 'Serverless Function', color: '#ED7100', glyph: 'lambda', resIcon: 'lambda' },
+      { id: 'ecs', domain: 'cloud', cat: 'AWS Compute', name: 'Amazon ECS', sub1: 'Contenedor OCI / Backend', color: '#ED7100', glyph: 'ecs', resIcon: 'ecs' },
+      { id: 'fargate', domain: 'cloud', cat: 'AWS Compute', name: 'AWS Fargate', sub1: 'Serverless Container', color: '#ED7100', glyph: 'fargate', resIcon: 'fargate' },
+      { id: 'eks', domain: 'cloud', cat: 'AWS Compute', name: 'Amazon EKS', sub1: 'Kubernetes Cluster', color: '#ED7100', glyph: 'eks', resIcon: 'eks' },
+      
+      { id: 'alb', domain: 'cloud', cat: 'Redes & Edge', name: 'ELB / Caddy ALB', sub1: 'TLS 1.3 • TCP 443', color: '#8C4FFF', glyph: 'alb', resIcon: 'elastic_load_balancing' },
+      { id: 'cloudfront', domain: 'cloud', cat: 'Redes & Edge', name: 'CloudFront / Edge', sub1: 'CDN • Media Relay', color: '#8C4FFF', glyph: 'cloudfront', resIcon: 'cloudfront' },
+      { id: 'route53', domain: 'cloud', cat: 'Redes & Edge', name: 'Route 53 DNS', sub1: 'DNS Anycast & Failover', color: '#8C4FFF', glyph: 'route53', resIcon: 'route_53' },
+      { id: 'apigw', domain: 'cloud', cat: 'Redes & Edge', name: 'API Gateway', sub1: 'REST / WebSocket', color: '#8C4FFF', glyph: 'apigw', resIcon: 'api_gateway' },
+      
+      { id: 'rds', domain: 'cloud', cat: 'Datos & Storage', name: 'RDS / PostgreSQL', sub1: 'TCP 5432 mTLS HA', color: '#C925D1', glyph: 'rds', resIcon: 'rds' },
+      { id: 'dynamodb', domain: 'cloud', cat: 'Datos & Storage', name: 'DynamoDB', sub1: 'NoSQL Serverless', color: '#C925D1', glyph: 'dynamodb', resIcon: 'dynamodb' },
+      { id: 'redis', domain: 'cloud', cat: 'Datos & Storage', name: 'Redis Cache', sub1: 'TCP 6379 In-Memory', color: '#C925D1', glyph: 'redis', resIcon: 'elasticache' },
+      { id: 's3', domain: 'cloud', cat: 'Datos & Storage', name: 'Amazon S3 / MinIO', sub1: 'WORM Object Lock', color: '#7AA116', glyph: 's3', resIcon: 's3' },
+
+      { id: 'waf', domain: 'cloud', cat: 'Seguridad & Ops', name: 'AWS WAF / Shield', sub1: 'DDoS & OWASP Rules', color: '#DD344C', glyph: 'waf', resIcon: 'waf' },
+      { id: 'kms', domain: 'cloud', cat: 'Seguridad & Ops', name: 'KMS / Firma FEA', sub1: 'Cifrado & HSM', color: '#DD344C', glyph: 'kms', resIcon: 'kms' },
+      { id: 'sqs', domain: 'cloud', cat: 'Seguridad & Ops', name: 'Amazon SQS', sub1: 'Queue & DLQ', color: '#E7157B', glyph: 'sqs', resIcon: 'sqs' },
+      { id: 'bedrock', domain: 'cloud', cat: 'Seguridad & Ops', name: 'Amazon Bedrock AI', sub1: 'Foundation Models', color: '#01A88D', glyph: 'bedrock', resIcon: 'bedrock' },
+
+      { id: 'gcp_cloudrun', domain: 'cloud', cat: 'Google Cloud & Azure', name: 'GCP Cloud Run', sub1: 'Serverless Container', color: '#4285F4', glyph: 'gcp_run' },
+      { id: 'gcp_storage', domain: 'cloud', cat: 'Google Cloud & Azure', name: 'GCP Cloud Storage', sub1: 'Storage Buckets', color: '#34A853', glyph: 'gcp_storage' },
+      { id: 'az_appservice', domain: 'cloud', cat: 'Google Cloud & Azure', name: 'Azure App Service', sub1: 'PaaS Web Host', color: '#0078D4', glyph: 'az_app' },
+      { id: 'k8s_ingress', domain: 'cloud', cat: 'Kubernetes & Stack', name: 'K8s Ingress Controller', sub1: 'Nginx / Traefik', color: '#326CE5', glyph: 'k8s_ingress' },
+      { id: 'k8s_pod', domain: 'cloud', cat: 'Kubernetes & Stack', name: 'K8s Pod / Workload', sub1: 'Microservicio Pod', color: '#326CE5', glyph: 'k8s_pod' },
+      { id: 'kafka', domain: 'cloud', cat: 'Kubernetes & Stack', name: 'Apache Kafka', sub1: 'Event Streaming Hub', color: '#231F20', glyph: 'kafka' },
+      { id: 'fastapi', domain: 'cloud', cat: 'Kubernetes & Stack', name: 'FastAPI Backend', sub1: 'Python Async API', color: '#009688', glyph: 'fastapi' },
+      { id: 'react', domain: 'cloud', cat: 'Kubernetes & Stack', name: 'React Frontend', sub1: 'SPA Client / Web', color: '#61DAFB', glyph: 'react' },
+
+      // ---------- UML 2.5 ----------
+      { id: 'uml_class', domain: 'uml', cat: 'Estructura & Clases', name: 'Clase UML', sub1: 'Atributos & Métodos', color: '#2563EB', glyph: 'uml_class' },
+      { id: 'uml_interface', domain: 'uml', cat: 'Estructura & Clases', name: 'Interfaz UML', sub1: '<<interface>> Contrato', color: '#0284C7', glyph: 'uml_interface' },
+      { id: 'uml_component', domain: 'uml', cat: 'Estructura & Clases', name: 'Componente UML', sub1: 'Subsistema con Puertos', color: '#059669', glyph: 'uml_component' },
+      { id: 'uml_actor', domain: 'uml', cat: 'Casos de Uso & Actores', name: 'Actor UML', sub1: 'Usuario / Externo', color: '#475569', glyph: 'uml_actor', standalone: 'users' },
+      { id: 'uml_usecase', domain: 'uml', cat: 'Casos de Uso & Actores', name: 'Caso de Uso UML', sub1: 'Objetivo de Negocio', color: '#7C3AED', glyph: 'uml_usecase' },
+      { id: 'uml_lifeline', domain: 'uml', cat: 'Secuencia & Estados', name: 'Línea de Vida (Secuencia)', sub1: 'Participante :Objeto', color: '#0D9488', glyph: 'uml_lifeline' },
+      { id: 'uml_state', domain: 'uml', cat: 'Secuencia & Estados', name: 'Estado UML', sub1: 'Estado de Máquina', color: '#D97706', glyph: 'uml_state' },
+
+      // ---------- C4 MODEL ----------
+      { id: 'c4_person', domain: 'c4', cat: 'Personas & Sistemas', name: 'Persona C4', sub1: '[Person] Paciente / Doctor', color: '#08427B', glyph: 'c4_person' },
+      { id: 'c4_system', domain: 'c4', cat: 'Personas & Sistemas', name: 'Sistema de Software C4', sub1: '[Software System] Core', color: '#1168BD', glyph: 'c4_system' },
+      { id: 'c4_container', domain: 'c4', cat: 'Contenedores C4', name: 'Contenedor (SPA/API)', sub1: '[Container: Axum / Next]', color: '#438DD5', glyph: 'c4_container' },
+      { id: 'c4_db', domain: 'c4', cat: 'Contenedores C4', name: 'Base de Datos C4', sub1: '[Container: PostgreSQL]', color: '#438DD5', glyph: 'c4_db' },
+      { id: 'c4_comp', domain: 'c4', cat: 'Contenedores C4', name: 'Componente C4', sub1: '[Component: Service]', color: '#85BBF0', glyph: 'c4_comp' },
+
+      // ---------- ERD ----------
+      { id: 'erd_table', domain: 'erd', cat: 'Tablas & Entidades', name: 'Entidad / Tabla ERD', sub1: 'PK, FK y Columnas', color: '#0F766E', glyph: 'erd_table' },
+      { id: 'erd_rel', domain: 'erd', cat: 'Relaciones', name: 'Relación ERD', sub1: 'Rombo de Cardinalidad', color: '#0F766E', glyph: 'erd_rel' },
+
+      // ---------- FLOWCHART ----------
+      { id: 'fc_process', domain: 'flowchart', cat: 'Flujo de Decisión', name: 'Paso de Proceso', sub1: 'Acción / Cálculo', color: '#2563EB', glyph: 'fc_process' },
+      { id: 'fc_decision', domain: 'flowchart', cat: 'Flujo de Decisión', name: 'Decisión (Rombo)', sub1: '¿Sí o No? (Bifurcación)', color: '#D97706', glyph: 'fc_decision' },
+      { id: 'fc_io', domain: 'flowchart', cat: 'Flujo de Decisión', name: 'Entrada / Salida', sub1: 'Lectura / Impresión', color: '#059669', glyph: 'fc_io' },
+      { id: 'fc_term', domain: 'flowchart', cat: 'Flujo de Decisión', name: 'Inicio / Fin', sub1: 'Terminador (Óvalo)', color: '#7C3AED', glyph: 'fc_term' },
+      { id: 'fc_doc', domain: 'flowchart', cat: 'Flujo de Decisión', name: 'Documento', sub1: 'Reporte / Archivo', color: '#0891B2', glyph: 'fc_doc' }
+    ];
+
+    // ==================== 4. PLANTILLAS PROFESIONALES ====================
+    const TEMPLATES = [
+      {
+        id: 'bpmn-telemedicina',
+        domain: 'bpmn',
+        name: '⚙️ BPMN 2.0: Telemedicina & Receta FEA',
+        desc: 'Proceso E2E con Pools de Organización, Carriles de Paciente, Admisión y Médico, Compuertas XOR y Objeto de Datos.',
+        data: {
+          title: 'BPMN 2.0 — Proceso Oficial de Atención Médica y Videoconsulta',
+          diagramType: 'bpmn',
+          groups: [
+            { id: 'g_pool', type: 'bpmn_pool', name: 'Clínica MedicApp (Plataforma)', sub: 'Proceso de Atención Telemédica', x: 60, y: 50, w: 1040, h: 560 },
+            { id: 'g_lane_pac', type: 'bpmn_lane', name: 'Paciente', sub: 'Portal Web PWA', x: 95, y: 90, w: 980, h: 140 },
+            { id: 'g_lane_tri', type: 'bpmn_lane', name: 'Admisión & Triage', sub: 'Validación FONASA / Isapre', x: 95, y: 250, w: 980, h: 150 },
+            { id: 'g_lane_med', type: 'bpmn_lane', name: 'Médico Especialista', sub: 'Box Virtual WebRTC', x: 95, y: 420, w: 980, h: 160 }
+          ],
+          nodes: [
+            { id: 'bp_start', tpl: 'bpmn_start', name: 'Inicio Consulta', sub1: 'Solicitud Paciente', x: 130, y: 135 },
+            { id: 'bp_t1', tpl: 'bpmn_user_task', name: 'Ingresar Síntomas', sub1: 'Formulario de Admisión', x: 260, y: 130 },
+            { id: 'bp_t2', tpl: 'bpmn_service_task', name: 'Validar Previsión', sub1: 'API I-Med / Fonasa', x: 260, y: 290 },
+            { id: 'bp_gw1', tpl: 'bpmn_gw_xor', name: '¿Previsión Habilitada?', sub1: 'Compuerta XOR', x: 440, y: 290 },
+            { id: 'bp_t3', tpl: 'bpmn_user_task', name: 'Realizar Videoconsulta', sub1: 'WebRTC P2P Seguro', x: 630, y: 460 },
+            { id: 'bp_doc', tpl: 'bpmn_data_object', name: 'Ficha Clínica', sub1: 'PDF [en curso]', x: 630, y: 290 },
+            { id: 'bp_t4', tpl: 'bpmn_service_task', name: 'Emitir Receta FEA', sub1: 'Firma Electrónica HSM', x: 820, y: 460 },
+            { id: 'bp_end', tpl: 'bpmn_end_term', name: 'Fin de Atención', sub1: 'Cierre de Ficha', x: 990, y: 460 }
+          ],
+          edges: [
+            { id: 'bpe1', source: 'bp_start', target: 'bp_t1', label: '', style: 'primary', step: '1' },
+            { id: 'bpe2', source: 'bp_t1', target: 'bp_t2', label: 'Envía datos', style: 'primary', step: '2' },
+            { id: 'bpe3', source: 'bp_t2', target: 'bp_gw1', label: 'Resultado', style: 'primary', step: '3' },
+            { id: 'bpe4', source: 'bp_gw1', target: 'bp_t3', label: 'Sí (Habilitado)', style: 'primary', step: '4' },
+            { id: 'bpe5', source: 'bp_t3', target: 'bp_t4', label: 'Diagnóstico', style: 'primary', step: '5' },
+            { id: 'bpe6', source: 'bp_t4', target: 'bp_end', label: 'Receta firmada', style: 'primary', step: '6' }
+          ]
+        }
+      },
+      {
+        id: 'medicapp-cloud',
+        domain: 'cloud',
+        name: '☁️ MedicApp Cloud (Zero Trust HA)',
+        desc: 'Cloudflare Pro, DMZ Caddy, Backend Rust Axum, PostgreSQL 15.4 HA, MinIO S3 y AZ2 DRP.',
+        data: {
+          title: 'MedicApp — Arquitectura Cloud Zero Trust & Target HA',
+          diagramType: 'cloud',
+          groups: [
+            { id: 'g_cloud', type: 'aws_cloud', name: 'Cloud Infrastructure — MedicApp (Zero Trust)', sub: 'Defensa en Profundidad', x: 340, y: 40, w: 980, h: 770 },
+            { id: 'g_vpc', type: 'vpc', name: 'VPC / Host Hardened AZ1 (Fase Piloto)', sub: 'Rocky Linux 9 • 8 vCPU EPYC • 32 GB ECC', x: 365, y: 85, w: 930, h: 485 },
+            { id: 'g_dmz', type: 'public_subnet', name: 'DMZ Pública (dmz_net)', sub: '10.0.1.0/24 • nftables', x: 385, y: 135, w: 230, h: 415 },
+            { id: 'g_app', type: 'private_subnet', name: 'Servicios (app_net)', sub: '10.0.2.0/24 • Aislada', x: 645, y: 135, w: 280, h: 415 },
+            { id: 'g_data', type: 'private_subnet', name: 'Datos (data_net / VLAN 30)', sub: '10.0.3.0/24 • 0.0.0.0/0 DROP', x: 955, y: 135, w: 320, h: 415 }
+          ],
+          nodes: [
+            { id: 'n_users', tpl: 'users', name: 'Pacientes / Médicos', sub1: 'Web PWA / Móvil', x: 40, y: 200 },
+            { id: 'n_cf', tpl: 'waf', name: 'Cloudflare Pro', sub1: 'DNSSEC • DDoS • WAF', x: 195, y: 200 },
+            { id: 'n_caddy', tpl: 'alb', name: 'Caddy 2.7 + Coraza', sub1: 'TLS 1.3 • TCP 443', x: 468, y: 200 },
+            { id: 'n_back', tpl: 'ecs', name: 'Backend Rust Axum', sub1: 'TCP 3000 • Tokio WSS', x: 753, y: 315 },
+            { id: 'n_pg', tpl: 'rds', name: 'PostgreSQL 15.4', sub1: 'TCP 5432 • ZFS', x: 1083, y: 185 },
+            { id: 'n_minio', tpl: 's3', name: 'MinIO S3 WORM', sub1: '15 Años (D.S. 41)', x: 1083, y: 440 }
+          ],
+          edges: [
+            { id: 'e1', source: 'n_users', target: 'n_cf', label: 'TLS 1.3', style: 'primary', step: '1' },
+            { id: 'e2', source: 'n_cf', target: 'n_caddy', label: 'HTTPS 443', style: 'primary', step: '2' },
+            { id: 'e3', source: 'n_caddy', target: 'n_back', label: 'TCP 3000', style: 'primary', step: '3' },
+            { id: 'e4', source: 'n_back', target: 'n_pg', label: 'SQLx mTLS 5432', style: 'primary', step: '4' },
+            { id: 'e5', source: 'n_back', target: 'n_minio', label: 'S3 WORM 9000', style: 'primary', step: '5' }
+          ]
+        }
+      },
+      {
+        id: 'uml-class-medicapp',
+        domain: 'uml',
+        name: '📐 UML: Diagrama de Clases (Salud Digital)',
+        desc: 'Clases Paciente, FichaClinica, AtencionTelemedica, RecetaDigital y FirmaElectronica.',
+        data: {
+          title: 'UML — Diagrama de Clases (Plataforma Médica)',
+          diagramType: 'uml',
+          groups: [
+            { id: 'g_pkg', type: 'uml_package', name: 'Package: Dominio Clínico & FEA', sub: 'Modelos de Entidad y Contratos', x: 60, y: 50, w: 980, h: 560 }
+          ],
+          nodes: [
+            { id: 'u_pac', tpl: 'uml_class', name: 'Paciente', sub1: '+ rut: RUT\n+ nombres: String\n+ tramo_fonasa: Char', x: 100, y: 140 },
+            { id: 'u_fic', tpl: 'uml_class', name: 'FichaClinica', sub1: '+ id: UUID\n+ fecha: Date\n+ getHistorial(): List', x: 400, y: 140 },
+            { id: 'u_ate', tpl: 'uml_class', name: 'AtencionTelemedica', sub1: '+ sala_webrtc: String\n+ iniciarLlamada(): Void', x: 400, y: 380 },
+            { id: 'u_rec', tpl: 'uml_class', name: 'RecetaDigital', sub1: '+ folio_minsal: String\n+ medicamentos: Array', x: 740, y: 140 },
+            { id: 'u_fea', tpl: 'uml_class', name: 'FirmaElectronicaAvanzada', sub1: '+ cert: X509\n+ firmarDoc(): ByteArr', x: 740, y: 380 },
+            { id: 'u_iface', tpl: 'uml_interface', name: '<<interface>> IFirmaService', sub1: '+ firmarToken(): JWT', x: 740, y: 500 }
+          ],
+          edges: [
+            { id: 'ue1', source: 'u_pac', target: 'u_fic', label: '1 tiene 1..*', style: 'primary' },
+            { id: 'ue2', source: 'u_fic', target: 'u_ate', label: '1 registra 0..*', style: 'primary' },
+            { id: 'ue3', source: 'u_ate', target: 'u_rec', label: '1 emite 0..1', style: 'primary' },
+            { id: 'ue4', source: 'u_rec', target: 'u_fea', label: 'requiere firma', style: 'sec' },
+            { id: 'ue5', source: 'u_fea', target: 'u_iface', label: 'implements', style: 'async' }
+          ]
+        }
+      },
+      {
+        id: 'c4-containers',
+        domain: 'c4',
+        name: '🏗️ C4 Model: Diagrama de Contenedores',
+        desc: 'Nivel 2 de C4: Persona, Single Page App, API Backend, Base de Datos y Sistemas Externos.',
+        data: {
+          title: 'C4 Model — Diagrama de Contenedores MedicApp',
+          diagramType: 'c4',
+          groups: [
+            { id: 'c4_bound', type: 'c4_boundary', name: 'System Boundary: Plataforma MedicApp', sub: 'Servicios Centrales', x: 260, y: 60, w: 760, h: 540 }
+          ],
+          nodes: [
+            { id: 'c4_usr', tpl: 'c4_person', name: 'Paciente / Médico', sub1: '[Person]\nAccede a telemedicina', x: 60, y: 220 },
+            { id: 'c4_spa', tpl: 'c4_container', name: 'Single-Page App', sub1: '[Container: Next.js 14]\nUI y Videoconsulta WebRTC', x: 310, y: 220 },
+            { id: 'c4_api', tpl: 'c4_container', name: 'API Backend', sub1: '[Container: Rust Axum]\nLógica de negocio y citas', x: 570, y: 220 },
+            { id: 'c4_db', tpl: 'c4_db', name: 'Base de Datos', sub1: '[Container: PostgreSQL]\nHistorias clínicas y turnos', x: 830, y: 150 },
+            { id: 'c4_s3', tpl: 'c4_db', name: 'Storage MinIO', sub1: '[Container: S3 WORM]\nExámenes y recetas', x: 830, y: 310 }
+          ],
+          edges: [
+            { id: 'c4e1', source: 'c4_usr', target: 'c4_spa', label: 'HTTPS 443', style: 'primary', step: '1' },
+            { id: 'c4e2', source: 'c4_spa', target: 'c4_api', label: 'JSON / WSS', style: 'primary', step: '2' },
+            { id: 'c4e3', source: 'c4_api', target: 'c4_db', label: 'SQLx mTLS', style: 'primary', step: '3' },
+            { id: 'c4e4', source: 'c4_api', target: 'c4_s3', label: 'Guarda PDFs S3', style: 'primary', step: '4' }
+          ]
+        }
+      }
+    ];
+
+    // ==================== 5. ESTADO GLOBAL ====================
+    let state = {
+      title: '',
+      diagramType: 'bpmn',
+      dark: false,
+      tool: 'select',
+      connectFrom: null,
+      selected: null,
+      zoom: 0.82,
+      panX: 30,
+      panY: 30,
+      groups: [],
+      nodes: [],
+      edges: [],
+      history: [],
+      redoHistory: [],
+    };
+
+    // Sesión de Usuario & Roles para Presentación
+    let currentUser = {
+      name: 'Architect',
+      role: 'Staff Systems Architect',
+      rut: 'ARCH-001',
+      token: 'JWT-OPENARCH-' + Math.random().toString(36).substring(2, 10).toUpperCase(),
+      loggedIn: true,
+      issuedAt: new Date().toISOString()
+    };
+    try {
+      const savedUser = localStorage.getItem('openarchitecto_user');
+      if (savedUser) currentUser = Object.assign(currentUser, JSON.parse(savedUser));
+    } catch (_) {}
+
+    // Motor de Modo Presentación Paso a Paso
+    const presState = {
+      active: false,
+      stepIdx: 0,
+      steps: [],
+      autoTimer: null,
+      autoPlay: false
+    };
+
+    let activeDomain = 'bpmn';
+    let uidCounter = 100;
+    const nextId = (prefix) => `${prefix}_${++uidCounter}`;
+
+    function syncUidCounter() {
+      let maxNum = 100;
+      for (const item of [...state.groups, ...state.nodes, ...state.edges]) {
+        const m = String(item?.id || '').match(/(\d+)$/);
+        if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
+      }
+      uidCounter = maxNum;
+    }
+
+    function resolveNodeMeta(n) {
+      const lookupId = n.tpl === 'c4_component' ? 'c4_comp' : n.tpl;
+      const meta = SERVICE_CATALOG.find(x => x.id === lookupId);
+      if (!meta) return n;
+      return {
+        ...n,
+        color: n.color || meta.color,
+        glyph: n.glyph || meta.glyph,
+        standalone: n.standalone || meta.standalone || ''
+      };
+    }
+
+    function isBpmnTask(tpl) {
+      return Boolean(tpl) && (tpl.startsWith('bpmn_task') || tpl.endsWith('_task') || tpl === 'bpmn_business_rule');
+    }
+
+    const $ = (id) => document.getElementById(id);
+    const svgEl = $('diagram-svg');
+    const vpTransform = $('viewport-transform');
+    const layerGroups = $('layer-groups');
+    const layerEdges = $('layer-edges');
+    const layerNodes = $('layer-nodes');
+
+    function showToast(msg) {
+      const t = $('toast');
+      t.textContent = msg;
+      t.classList.remove('hidden');
+      clearTimeout(showToast._timer);
+      showToast._timer = setTimeout(() => t.classList.add('hidden'), 2600);
+    }
+
+    function takeSnapshot() {
+      return JSON.stringify({ title: state.title, diagramType: state.diagramType, groups: state.groups, nodes: state.nodes, edges: state.edges });
+    }
+
+    function pushHistory(customSnap) {
+      state.history.push(customSnap || takeSnapshot());
+      if (state.history.length > 40) state.history.shift();
+      state.redoHistory = [];
+    }
+
+    function applySnapshot(snap) {
+      state.title = snap.title || '';
+      state.diagramType = snap.diagramType || 'bpmn';
+      state.groups = snap.groups || [];
+      state.nodes = snap.nodes || [];
+      state.edges = snap.edges || [];
+      state.selected = null;
+      syncUidCounter();
+      renderAll();
+      renderInspector();
+      saveLocal();
+    }
+
+    function undo() {
+      if (!state.history.length) { showToast('Nada que deshacer'); return; }
+      state.redoHistory.push(takeSnapshot());
+      applySnapshot(JSON.parse(state.history.pop()));
+      showToast('Deshecho');
+    }
+
+    function redo() {
+      if (!state.redoHistory.length) { showToast('Nada que rehacer'); return; }
+      state.history.push(takeSnapshot());
+      applySnapshot(JSON.parse(state.redoHistory.pop()));
+      showToast('Rehecho');
+    }
+
+    function saveLocal() {
+      try {
+        localStorage.setItem('architect_studio_pro_v2', JSON.stringify({
+          title: state.title,
+          diagramType: state.diagramType,
+          dark: state.dark,
+          groups: state.groups,
+          nodes: state.nodes,
+          edges: state.edges,
+        }));
+      } catch (_) {}
+    }
+
+    function loadLocal() {
+      try {
+        const raw = localStorage.getItem('architect_studio_pro_v2');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed.nodes) && Array.isArray(parsed.groups)) {
+            state.title = parsed.title || '';
+            state.diagramType = parsed.diagramType || 'bpmn';
+            state.dark = Boolean(parsed.dark);
+            state.groups = parsed.groups;
+            state.nodes = parsed.nodes.map(resolveNodeMeta);
+            state.edges = parsed.edges || [];
+            activeDomain = state.diagramType || 'bpmn';
+            if ($('domain-select')) $('domain-select').value = activeDomain;
+            syncUidCounter();
+            return true;
+          }
+        }
+      } catch (_) {}
+      return false;
+    }
+
+    function esc(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function escDrawio(s) {
+      return esc(String(s ?? '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')).replace(/\r?\n/g, '&#xa;');
+    }
+
+    function getGroupMeta(type) {
+      return GROUP_CATALOG.find(g => g.type === type) || GROUP_CATALOG[0];
+    }
+
+    function updateTransform() {
+      vpTransform.setAttribute('transform', `translate(${state.panX}, ${state.panY}) scale(${state.zoom})`);
+      $('zoom-label').textContent = `${Math.round(state.zoom * 100)}%`;
+    }
+
+    function computeOrthogonalPath(src, dst) {
+      const sw = src.w || 64, sh = src.h || 64;
+      const dw = dst.w || 64, dh = dst.h || 64;
+      const sx = src.x + sw / 2, sy = src.y + sh / 2;
+      const dx = dst.x + dw / 2, dy = dst.y + dh / 2;
+      const diffX = dx - sx;
+      const diffY = dy - sy;
+
+      let p1x, p1y, p2x, p2y;
+      if (Math.abs(diffX) >= Math.abs(diffY)) {
+        p1x = diffX >= 0 ? src.x + sw : src.x;
+        p1y = sy;
+        p2x = diffX >= 0 ? dst.x : dst.x + dw;
+        p2y = dy;
+        const midX = Math.round((p1x + p2x) / 2);
+        return {
+          d: `M ${p1x} ${p1y} H ${midX} V ${p2y} H ${p2x}`,
+          mx: midX,
+          my: Math.round((p1y + p2y) / 2),
+        };
+      } else {
+        p1x = sx;
+        p1y = diffY >= 0 ? src.y + sh : src.y;
+        p2x = dx;
+        p2y = diffY >= 0 ? dst.y : dst.y + dh;
+        const midY = Math.round((p1y + p2y) / 2);
+        return {
+          d: `M ${p1x} ${p1y} V ${midY} H ${p2x} V ${p2y}`,
+          mx: Math.round((p1x + p2x) / 2),
+          my: midY,
+        };
+      }
+    }
+
+    // ==================== 6. SVG RENDERER ====================
+    function renderAll() {
+      const dark = state.dark;
+      const vp = $('canvas-viewport');
+      vp.classList.toggle('canvas-grid-dark', dark);
+      vp.classList.toggle('canvas-grid-light', !dark);
+      vp.classList.toggle('connect-mode', state.tool === 'connect');
+      $('btn-theme').textContent = dark ? 'Fondo: Oscuro' : 'Fondo: Claro';
+
+      const textMain = dark ? '#F1F5F9' : '#1E293B';
+      const textSub = dark ? '#94A3B8' : '#475569';
+      const lblBg = dark ? '#1A232E' : '#FFFFFF';
+
+      // 1. Zonas y Pools
+      layerGroups.innerHTML = state.groups.map(g => {
+        const meta = getGroupMeta(g.type);
+        const stroke = meta.stroke;
+        const fill = (meta.fill !== 'none' && dark) ? `${meta.stroke}1A` : meta.fill;
+        const isSel = state.selected?.kind === 'group' && state.selected.id === g.id;
+
+        const isPool = g.type === 'bpmn_pool';
+        const isLane = g.type === 'bpmn_lane';
+        const isSubproc = g.type === 'bpmn_subproc';
+        const isTrans = g.type === 'bpmn_trans';
+
+        if (isPool) {
+          // BPMN Pool: Gran contenedor horizontal con cabecera izquierda rotada
+          return `
+            <g class="svg-node" data-kind="group" data-id="${g.id}" transform="translate(${g.x},${g.y})">
+              <rect x="0" y="0" width="${g.w}" height="${g.h}" rx="2" fill="${fill}" stroke="${stroke}" stroke-width="${isSel ? 3 : 2}" />
+              <rect x="0" y="0" width="34" height="${g.h}" fill="${dark ? '#1E293B' : '#F1F5F9'}" stroke="${stroke}" stroke-width="1.5" />
+              <text x="17" y="${g.h / 2}" font-size="12" font-weight="700" fill="${stroke}" text-anchor="middle" transform="rotate(-90 17 ${g.h / 2})">${esc(g.name)}</text>
+              ${isSel ? `<rect class="resize-handle" data-resize="${g.id}" x="${g.w - 14}" y="${g.h - 14}" width="14" height="14" rx="2" fill="#ED7100" stroke="#FFFFFF" stroke-width="2" />` : ''}
+            </g>`;
+        }
+
+        if (isLane) {
+          // BPMN Swimlane: Carril de rol horizontal
+          return `
+            <g class="svg-node" data-kind="group" data-id="${g.id}" transform="translate(${g.x},${g.y})">
+              <rect x="0" y="0" width="${g.w}" height="${g.h}" fill="${fill}" stroke="${stroke}" stroke-width="${isSel ? 2.5 : 1.5}" stroke-dasharray="6,4" />
+              <rect x="0" y="0" width="28" height="${g.h}" fill="${dark ? '#334155' : '#E2E8F0'}" stroke="${stroke}" stroke-width="1" />
+              <text x="14" y="${g.h / 2}" font-size="10.5" font-weight="600" fill="${textMain}" text-anchor="middle" transform="rotate(-90 14 ${g.h / 2})">${esc(g.name)}</text>
+              ${isSel ? `<rect class="resize-handle" data-resize="${g.id}" x="${g.w - 14}" y="${g.h - 14}" width="14" height="14" rx="2" fill="#ED7100" stroke="#FFFFFF" stroke-width="2" />` : ''}
+            </g>`;
+        }
+
+        if (isSubproc) {
+          // BPMN Subproceso Embebido
+          return `
+            <g class="svg-node" data-kind="group" data-id="${g.id}" transform="translate(${g.x},${g.y})">
+              <rect x="0" y="0" width="${g.w}" height="${g.h}" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="${isSel ? 2.8 : 1.8}" />
+              <text x="16" y="24" font-size="12" font-weight="700" fill="${textMain}">${esc(g.name)}</text>
+              <rect x="${g.w / 2 - 12}" y="${g.h - 20}" width="24" height="16" rx="3" fill="#FFFFFF" stroke="${stroke}" stroke-width="1.2"/>
+              <text x="${g.w / 2}" y="${g.h - 8}" font-size="11" font-weight="bold" fill="${stroke}" text-anchor="middle">+</text>
+              ${isSel ? `<rect class="resize-handle" data-resize="${g.id}" x="${g.w - 14}" y="${g.h - 14}" width="14" height="14" rx="2" fill="#ED7100" stroke="#FFFFFF" stroke-width="2" />` : ''}
+            </g>`;
+        }
+
+        // Otras zonas estándar (Cloud, UML, C4)
+        return `
+          <g class="svg-node" data-kind="group" data-id="${g.id}" transform="translate(${g.x},${g.y})">
+            <rect x="0" y="0" width="${g.w}" height="${g.h}" rx="6"
+              fill="${fill}" stroke="${stroke}" stroke-width="${isSel ? 2.8 : 1.8}"
+              ${(meta.dashed || isTrans) ? 'stroke-dasharray="7,5"' : ''} />
+            <rect x="0" y="0" width="34" height="24" rx="3" fill="${stroke}" />
+            <text x="17" y="15.5" font-size="9.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">${esc(meta.badge)}</text>
+            <text x="42" y="16.5" font-size="12" font-weight="700" fill="${stroke}">${esc(g.name)}</text>
+            ${g.sub ? `<text x="42" y="31.5" font-size="10" font-weight="500" fill="${textSub}">${esc(g.sub)}</text>` : ''}
+            ${isSel ? `<rect class="resize-handle" data-resize="${g.id}" x="${g.w - 12}" y="${g.h - 12}" width="12" height="12" rx="2" fill="#ED7100" stroke="#FFFFFF" stroke-width="1.5" />` : ''}
+          </g>`;
+      }).join('');
+
+      // 2. Conexiones
+      layerEdges.innerHTML = state.edges.map(e => {
+        const src = state.nodes.find(n => n.id === e.source);
+        const dst = state.nodes.find(n => n.id === e.target);
+        if (!src || !dst) return '';
+        const { d, mx, my } = computeOrthogonalPath(src, dst);
+        const isSel = state.selected?.kind === 'edge' && state.selected.id === e.id;
+
+        const activePres = presState.active ? presState.steps[presState.stepIdx] : null;
+        const isPresEdge = Boolean(activePres && activePres.edge?.id === e.id);
+
+        let stroke = dark ? '#E2E8F0' : '#232F3E';
+        let marker = dark ? 'url(#arr-primary-dark)' : 'url(#arr-primary)';
+        let dash = '';
+        if (e.style === 'async') { stroke = '#147EBA'; marker = 'url(#arr-async)'; dash = 'stroke-dasharray="6,4"'; }
+        if (e.style === 'sec') { stroke = '#DD344C'; marker = 'url(#arr-sec)'; dash = 'stroke-dasharray="6,4"'; }
+
+        if (isPresEdge) {
+          stroke = '#10B981';
+          marker = 'url(#arr-emerald)';
+          dash = '';
+        }
+
+        const labelW = e.label ? Math.max(50, e.label.length * 6.3 + 14) : 0;
+        return `
+          <g class="svg-edge ${isPresEdge ? 'pres-active-edge' : ''}" data-kind="edge" data-id="${e.id}">
+            <path class="edge-hit" d="${d}" fill="none" stroke="transparent" stroke-width="14" />
+            <path d="${d}" fill="none" stroke="${isPresEdge ? '#10B981' : (isSel ? '#ED7100' : stroke)}" stroke-width="${isPresEdge ? 4.5 : (isSel ? 3 : 2)}" ${dash} marker-end="${marker}" ${isPresEdge ? 'filter="url(#glow-emerald)"' : ''} />
+            ${e.label ? `
+              <rect x="${mx - labelW / 2}" y="${my - 18}" width="${labelW}" height="16" rx="3" fill="${isPresEdge ? '#064E3B' : lblBg}" opacity="0.94" stroke="${isPresEdge ? '#10B981' : stroke}" stroke-width="${isPresEdge ? 1.5 : 0.8}"/>
+              <text x="${mx}" y="${my - 7}" font-size="10" font-weight="${isPresEdge ? '700' : '600'}" fill="${isPresEdge ? '#34D399' : (isSel ? '#ED7100' : stroke)}" text-anchor="middle">${esc(e.label)}</text>
+            ` : ''}
+            ${e.step ? `
+              <circle cx="${mx}" cy="${my + 8}" r="${isPresEdge ? 12 : 10.5}" fill="${isPresEdge ? '#10B981' : (dark ? '#ED7100' : '#232F3E')}" stroke="${lblBg}" stroke-width="1.5" />
+              <text x="${mx}" y="${my + 12}" font-size="${isPresEdge ? '11' : '10.5'}" font-weight="700" fill="#FFFFFF" text-anchor="middle">${esc(e.step)}</text>
+            ` : ''}
+          </g>`;
+      }).join('');
+
+      // 3. Nodos & Elementos
+      layerNodes.innerHTML = state.nodes.map(rawNode => {
+        const n = resolveNodeMeta(rawNode);
+        rawNode.color = n.color;
+        rawNode.glyph = n.glyph;
+        rawNode.standalone = n.standalone;
+
+        const isSel = state.selected?.kind === 'node' && state.selected.id === n.id;
+        const isConnSrc = state.connectFrom === n.id;
+        const activePres = presState.active ? presState.steps[presState.stepIdx] : null;
+        const isPresNode = Boolean(activePres && (activePres.srcNode?.id === n.id || activePres.dstNode?.id === n.id));
+        const glyphSvg = GLYPHS[n.glyph] || GLYPHS.ec2;
+        const tpl = n.tpl || '';
+
+        let shapeContent = '';
+        let nodeW = 64, nodeH = 64;
+
+        if (isBpmnTask(tpl)) {
+          nodeW = 148; nodeH = 66; rawNode.w = nodeW; rawNode.h = nodeH;
+          shapeContent = `
+            <rect x="0" y="0" width="${nodeW}" height="${nodeH}" rx="8" fill="${dark ? '#1E293B' : '#FFFFFF'}" stroke="${n.color || '#475569'}" stroke-width="1.8"/>
+            <rect x="8" y="8" width="24" height="24" rx="4" fill="${n.color || '#3B82F6'}"/>
+            <g fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(8,8) scale(0.38)">${glyphSvg}</g>
+            <text x="38" y="24" font-size="11" font-weight="700" fill="${textMain}">${esc((n.name || '').slice(0, 18))}</text>
+            <text x="10" y="49" font-size="9" fill="${textSub}">${esc((n.sub1 || '').slice(0, 26))}</text>
+          `;
+        } else if (tpl.startsWith('bpmn_gw')) {
+          nodeW = 56; nodeH = 56; rawNode.w = nodeW; rawNode.h = nodeH;
+          shapeContent = `
+            <g transform="translate(4,4)">
+              <polygon points="24,0 48,24 24,48 0,24" fill="${dark ? '#854D0E' : '#FEF08A'}" stroke="${n.color || '#CA8A04'}" stroke-width="2.2"/>
+              <g fill="none" stroke="${dark ? '#FEF08A' : '#713F12'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" transform="translate(-8,-8)">${glyphSvg}</g>
+            </g>
+            <text x="28" y="72" font-size="10.5" font-weight="700" fill="${textMain}" text-anchor="middle">${esc(n.name)}</text>
+          `;
+        } else if (tpl.startsWith('bpmn_start')) {
+          nodeW = 48; nodeH = 48; rawNode.w = nodeW; rawNode.h = nodeH;
+          shapeContent = `
+            <circle cx="24" cy="24" r="22" fill="${dark ? '#065F46' : '#DCFCE7'}" stroke="#16A34A" stroke-width="2.5"/>
+            <g fill="none" stroke="#16A34A" stroke-width="2" transform="translate(-8,-8)">${glyphSvg}</g>
+            <text x="24" y="64" font-size="10.5" font-weight="700" fill="${textMain}" text-anchor="middle">${esc(n.name)}</text>
+          `;
+        } else if (tpl.startsWith('bpmn_end')) {
+          nodeW = 48; nodeH = 48; rawNode.w = nodeW; rawNode.h = nodeH;
+          shapeContent = `
+            <circle cx="24" cy="24" r="22" fill="${dark ? '#991B1B' : '#FEE2E2'}" stroke="#DC2626" stroke-width="4.5"/>
+            <g fill="none" stroke="#DC2626" stroke-width="2" transform="translate(-8,-8)">${glyphSvg}</g>
+            <text x="24" y="64" font-size="10.5" font-weight="700" fill="${textMain}" text-anchor="middle">${esc(n.name)}</text>
+          `;
+        } else if (tpl.startsWith('bpmn_timer') || tpl.startsWith('bpmn_msg') || tpl === 'bpmn_error' || tpl === 'bpmn_link') {
+          nodeW = 48; nodeH = 48; rawNode.w = nodeW; rawNode.h = nodeH;
+          shapeContent = `
+            <circle cx="24" cy="24" r="22" fill="${dark ? '#78350F' : '#FEF3C7'}" stroke="#D97706" stroke-width="2"/>
+            <circle cx="24" cy="24" r="18" fill="none" stroke="#D97706" stroke-width="1.2"/>
+            <g fill="none" stroke="#B45309" stroke-width="1.8" transform="translate(-8,-8)">${glyphSvg}</g>
+            <text x="24" y="64" font-size="10.5" font-weight="700" fill="${textMain}" text-anchor="middle">${esc(n.name)}</text>
+          `;
+        } else if (tpl === 'bpmn_data_object') {
+          nodeW = 54; nodeH = 68; rawNode.w = nodeW; rawNode.h = nodeH;
+          shapeContent = `
+            <path d="M 6 4 L 38 4 L 48 14 L 48 64 L 6 64 Z" fill="${dark ? '#1E293B' : '#FFFFFF'}" stroke="#475569" stroke-width="1.8"/>
+            <path d="M 38 4 L 38 14 L 48 14" fill="#E2E8F0" stroke="#475569" stroke-width="1.5"/>
+            <path d="M 14 26 h 26 M 14 36 h 26 M 14 46 h 18" stroke="#94A3B8" stroke-width="1.5"/>
+            <text x="27" y="82" font-size="10.5" font-weight="700" fill="${textMain}" text-anchor="middle">${esc(n.name)}</text>
+          `;
+        } else if (tpl === 'bpmn_data_store') {
+          nodeW = 60; nodeH = 60; rawNode.w = nodeW; rawNode.h = nodeH;
+          shapeContent = `
+            <ellipse cx="30" cy="14" rx="24" ry="7" fill="${dark ? '#334155' : '#F1F5F9'}" stroke="#475569" stroke-width="1.8"/>
+            <path d="M 6 14 v 32 c 0 3.8 10.7 7 24 7 s 24 -3.2 24 -7 v -32" fill="${dark ? '#1E293B' : '#FFFFFF'}" stroke="#475569" stroke-width="1.8"/>
+            <path d="M 6 25 c 0 3.8 10.7 7 24 7 s 24 -3.2 24 -7 M 6 36 c 0 3.8 10.7 7 24 7 s 24 -3.2 24 -7" stroke="#475569" stroke-width="1.5"/>
+            <text x="30" y="72" font-size="10.5" font-weight="700" fill="${textMain}" text-anchor="middle">${esc(n.name)}</text>
+          `;
+        } else if (tpl === 'bpmn_annotation') {
+          nodeW = 140; nodeH = 56; rawNode.w = nodeW; rawNode.h = nodeH;
+          shapeContent = `
+            <path d="M 14 2 H 2 V ${nodeH - 2} H 14" fill="none" stroke="#64748B" stroke-width="2.2"/>
+            <rect x="4" y="2" width="${nodeW - 6}" height="${nodeH - 4}" rx="4" fill="${dark ? '#1E293B80' : '#F8FAFC'}" stroke="none"/>
+            <text x="12" y="22" font-size="10.5" font-weight="700" fill="${textMain}">${esc(n.name)}</text>
+            <text x="12" y="40" font-size="9" fill="${textSub}">${esc((n.sub1 || '').split('\n')[0])}</text>
+          `;
+        } else if (tpl === 'uml_class' || tpl === 'uml_interface' || tpl === 'erd_table') {
+          nodeW = 175;
+          const lines = (n.sub1 || '').split('\n').filter(Boolean).slice(0, 4);
+          nodeH = Math.max(76, 36 + lines.length * 14);
+          rawNode.w = nodeW; rawNode.h = nodeH;
+          const strokeCol = tpl === 'erd_table' ? '#0F766E' : tpl === 'uml_interface' ? '#0284C7' : (n.color || '#2563EB');
+          const bgCol = dark ? '#1E293B' : (tpl === 'erd_table' ? '#F0FDFA' : '#EFF6FF');
+          shapeContent = `
+            <rect x="0" y="0" width="${nodeW}" height="${nodeH}" rx="4" fill="${bgCol}" stroke="${strokeCol}" stroke-width="1.8"/>
+            <rect x="0" y="0" width="${nodeW}" height="24" rx="4" fill="${strokeCol}"/>
+            <text x="${nodeW / 2}" y="16" font-size="10.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">${esc(n.name)}</text>
+            <path d="M 0 24 h ${nodeW}" stroke="${strokeCol}" stroke-width="1.5"/>
+            ${lines.map((line, i) => `<text x="8" y="${39 + i * 14}" font-size="9" font-family="monospace" fill="${dark ? '#E2E8F0' : '#1E293B'}">${esc(line.slice(0, 28))}</text>`).join('')}
+          `;
+        } else if (tpl === 'uml_usecase') {
+          nodeW = 136; nodeH = 64; rawNode.w = nodeW; rawNode.h = nodeH;
+          shapeContent = `
+            <ellipse cx="68" cy="32" rx="66" ry="30" fill="${dark ? '#2E1065' : '#F3E8FF'}" stroke="#7C3AED" stroke-width="2"/>
+            <text x="68" y="36" font-size="11" font-weight="700" fill="${textMain}" text-anchor="middle">${esc(n.name)}</text>
+          `;
+        } else if (tpl === 'uml_lifeline') {
+          nodeW = 136; nodeH = 74; rawNode.w = nodeW; rawNode.h = nodeH;
+          shapeContent = `
+            <rect x="4" y="0" width="${nodeW - 8}" height="38" rx="4" fill="${dark ? '#134E4A' : '#F0FDFA'}" stroke="#0D9488" stroke-width="2"/>
+            <text x="${nodeW / 2}" y="18" font-size="10.5" font-weight="700" fill="${textMain}" text-anchor="middle">${esc(n.name)}</text>
+            <text x="${nodeW / 2}" y="31" font-size="8.5" fill="${textSub}" text-anchor="middle">${esc((n.sub1 || '').slice(0, 22))}</text>
+            <line x1="${nodeW / 2}" y1="38" x2="${nodeW / 2}" y2="${nodeH}" stroke="#0D9488" stroke-width="2" stroke-dasharray="5,4"/>
+          `;
+        } else if (tpl === 'uml_state' || tpl === 'uml_component') {
+          nodeW = 140; nodeH = 62; rawNode.w = nodeW; rawNode.h = nodeH;
+          const col = tpl === 'uml_component' ? '#059669' : '#D97706';
+          shapeContent = `
+            <rect x="0" y="0" width="${nodeW}" height="${nodeH}" rx="${tpl === 'uml_state' ? 18 : 4}" fill="${dark ? '#1E293B' : '#FFFFFF'}" stroke="${col}" stroke-width="2"/>
+            <text x="${nodeW / 2}" y="27" font-size="11" font-weight="700" fill="${textMain}" text-anchor="middle">${esc(n.name)}</text>
+            <text x="${nodeW / 2}" y="44" font-size="9" fill="${textSub}" text-anchor="middle">${esc((n.sub1 || '').slice(0, 24))}</text>
+          `;
+        } else if (tpl === 'c4_person') {
+          nodeW = 128; nodeH = 70; rawNode.w = nodeW; rawNode.h = nodeH;
+          shapeContent = `
+            <rect x="0" y="0" width="${nodeW}" height="${nodeH}" rx="12" fill="#08427B" stroke="#042749" stroke-width="2"/>
+            <circle cx="24" cy="22" r="9" fill="#FFFFFF"/>
+            <path d="M12 48c0-7 5-12 12-12s12 5 12 12" fill="#FFFFFF"/>
+            <text x="44" y="26" font-size="10.5" font-weight="700" fill="#FFFFFF">${esc(n.name)}</text>
+            <text x="44" y="42" font-size="8.5" font-weight="600" fill="#93C5FD">[Person]</text>
+          `;
+        } else if (tpl === 'c4_db') {
+          nodeW = 136; nodeH = 72; rawNode.w = nodeW; rawNode.h = nodeH;
+          shapeContent = `
+            <path d="M 4 14 v 44 c 0 6 28 11 64 11 s 64 -5 64 -11 v -44" fill="#438DD5" stroke="#2E6295" stroke-width="2"/>
+            <ellipse cx="68" cy="14" rx="64" ry="10" fill="#60A5FA" stroke="#2E6295" stroke-width="2"/>
+            <text x="68" y="39" font-size="11" font-weight="700" fill="#FFFFFF" text-anchor="middle">${esc(n.name)}</text>
+            <text x="68" y="54" font-size="8.5" fill="#E0F2FE" text-anchor="middle">[Database]</text>
+          `;
+        } else if (tpl === 'c4_container' || tpl === 'c4_system' || tpl === 'c4_comp' || tpl === 'c4_component') {
+          nodeW = 148; nodeH = 70; rawNode.w = nodeW; rawNode.h = nodeH;
+          const bgCol = tpl === 'c4_system' ? '#1168BD' : (tpl === 'c4_comp' || tpl === 'c4_component') ? '#85BBF0' : '#438DD5';
+          const fgCol = (tpl === 'c4_comp' || tpl === 'c4_component') ? '#0F172A' : '#FFFFFF';
+          const roleLbl = tpl === 'c4_system' ? '[Software System]' : (tpl === 'c4_comp' || tpl === 'c4_component') ? '[Component]' : '[Container]';
+          shapeContent = `
+            <rect x="0" y="0" width="${nodeW}" height="${nodeH}" rx="6" fill="${bgCol}" stroke="#0B4884" stroke-width="2"/>
+            <text x="${nodeW / 2}" y="25" font-size="11" font-weight="700" fill="${fgCol}" text-anchor="middle">${esc(n.name)}</text>
+            <text x="${nodeW / 2}" y="41" font-size="8.5" font-weight="600" fill="${fgCol}" opacity="0.9" text-anchor="middle">${roleLbl}</text>
+            <text x="${nodeW / 2}" y="56" font-size="8.5" fill="${fgCol}" opacity="0.85" text-anchor="middle">${esc((n.sub1 || '').split('\n').pop() || '').slice(0, 26)}</text>
+          `;
+        } else if (tpl === 'erd_rel' || tpl === 'fc_decision') {
+          nodeW = 120; nodeH = 68; rawNode.w = nodeW; rawNode.h = nodeH;
+          shapeContent = `
+            <polygon points="60,2 118,34 60,66 2,34" fill="${dark ? '#78350F' : '#FEF3C7'}" stroke="#D97706" stroke-width="2"/>
+            <text x="60" y="38" font-size="10" font-weight="700" fill="${textMain}" text-anchor="middle">${esc((n.name || '').slice(0, 18))}</text>
+          `;
+        } else if (tpl === 'fc_process' || tpl === 'fc_term' || tpl === 'fc_io' || tpl === 'fc_doc') {
+          nodeW = 140; nodeH = 60; rawNode.w = nodeW; rawNode.h = nodeH;
+          const col = n.color || '#2563EB';
+          if (tpl === 'fc_io') {
+            shapeContent = `
+              <polygon points="16,2 138,2 124,58 2,58" fill="${dark ? '#064E3B' : '#ECFDF5'}" stroke="#059669" stroke-width="2"/>
+              <text x="70" y="34" font-size="10.5" font-weight="700" fill="${textMain}" text-anchor="middle">${esc((n.name || '').slice(0, 20))}</text>
+            `;
+          } else {
+            shapeContent = `
+              <rect x="0" y="0" width="${nodeW}" height="${nodeH}" rx="${tpl === 'fc_term' ? 30 : 4}" fill="${dark ? '#1E293B' : '#FFFFFF'}" stroke="${col}" stroke-width="2"/>
+              <text x="${nodeW / 2}" y="27" font-size="10.5" font-weight="700" fill="${textMain}" text-anchor="middle">${esc((n.name || '').slice(0, 22))}</text>
+              <text x="${nodeW / 2}" y="44" font-size="9" fill="${textSub}" text-anchor="middle">${esc((n.sub1 || '').slice(0, 24))}</text>
+            `;
+          }
+        } else {
+          // Cloud Default Card
+          const isActor = Boolean(n.standalone);
+          nodeW = 64; nodeH = 64; rawNode.w = nodeW; rawNode.h = nodeH;
+          shapeContent = isActor
+            ? `<circle cx="32" cy="32" r="28" fill="${dark ? '#283546' : '#F4F6F8'}" stroke="${dark ? '#CBD5E1' : '#232F3E'}" stroke-width="2" />
+               <g fill="none" stroke="${dark ? '#F8FAFC' : '#232F3E'}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${glyphSvg}</g>`
+            : `<rect x="0" y="0" width="64" height="64" rx="6" fill="${n.color || '#ED7100'}" />
+               <g fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${glyphSvg}</g>`;
+        }
+
+        const isCustomBox = nodeW > 64 || tpl.startsWith('bpmn_') || tpl === 'uml_actor';
+        const presRing = isPresNode ? `
+          <rect x="-8" y="-8" width="${nodeW + 16}" height="${nodeH + 16}" rx="14" fill="none" stroke="#10B981" stroke-width="3.5" stroke-dasharray="6,4" class="pres-glow-ring" />
+          <circle cx="${nodeW / 2}" cy="-16" r="11" fill="#10B981" stroke="#FFFFFF" stroke-width="2" />
+          <text x="${nodeW / 2}" y="-11.5" font-size="10" font-weight="900" fill="#FFFFFF" text-anchor="middle">★</text>
+        ` : '';
+
+        return `
+          <g class="svg-node ${isPresNode ? 'pres-active-node' : ''}" data-kind="node" data-id="${esc(n.id)}" transform="translate(${n.x},${n.y})">
+            ${isSel ? `<rect class="node-hover-ring" x="-4" y="-4" width="${nodeW + 8}" height="${nodeH + 8}" rx="8" fill="none" stroke="#ED7100" stroke-width="2.5" />` : ''}
+            ${presRing}
+            ${shapeContent}
+            
+            ${!isCustomBox ? `
+              <text x="32" y="80" font-size="11.5" font-weight="700" fill="${textMain}" text-anchor="middle">${esc(n.name)}</text>
+              ${n.sub1 ? `<text x="32" y="94" font-size="9.5" font-weight="500" fill="${textSub}" text-anchor="middle">${esc(n.sub1)}</text>` : ''}
+            ` : ''}
+
+            <!-- Connect Port Handle -->
+            <circle class="port-handle" data-port="${esc(n.id)}" cx="${nodeW}" cy="${nodeH / 2}" r="6.5"
+              fill="${isConnSrc ? '#ED7100' : '#8C4FFF'}" stroke="#FFFFFF" stroke-width="2" />
+          </g>`;
+      }).join('');
+    }
+
+    // ==================== 7. CATALOG RENDERING BY DOMAIN & SECTIONS ====================
+    function renderCatalog() {
+      const q = ($('catalog-search').value || '').toLowerCase().trim();
+      const container = $('catalog-list');
+      let html = '';
+      let totalCount = 0;
+
+      // 1. ZONAS Y CONTENEDORES DE LA DISCIPLINA
+      const groups = GROUP_CATALOG.filter(g => {
+        if (activeDomain !== 'all' && activeDomain !== 'groups' && g.domain !== activeDomain) return false;
+        if (!q) return true;
+        return g.name.toLowerCase().includes(q) || g.sub.toLowerCase().includes(q);
+      });
+
+      if (groups.length) {
+        totalCount += groups.length;
+        html += `
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between px-1">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1">
+                <span>🔲</span> Zonas &amp; Contenedores
+              </span>
+              <span class="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-700">${groups.length}</span>
+            </div>
+            <div class="grid grid-cols-1 gap-1">`;
+        html += groups.map(g => `
+          <button type="button" data-add-group="${esc(g.type)}" class="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 text-left transition bg-white shadow-2xs">
+            <span class="w-8 h-6 rounded text-[10px] font-bold flex items-center justify-center text-white shrink-0 shadow-2xs" style="background:${esc(g.stroke)}">${esc(g.badge)}</span>
+            <div class="min-w-0">
+              <div class="text-xs font-semibold text-slate-800 truncate">${esc(g.name)}</div>
+              <div class="text-[10px] text-slate-600 truncate">${esc(g.sub)}</div>
+            </div>
+          </button>`).join('');
+        html += `</div></div>`;
+      }
+
+      // 2. ELEMENTOS Y NODOS CATEGORIZADOS
+      if (activeDomain !== 'groups') {
+        const items = SERVICE_CATALOG.filter(s => {
+          if (activeDomain !== 'all' && s.domain !== activeDomain) return false;
+          if (!q) return true;
+          return s.name.toLowerCase().includes(q) || s.cat.toLowerCase().includes(q) || (s.sub1 && s.sub1.toLowerCase().includes(q));
+        });
+
+        totalCount += items.length;
+        const cats = [...new Set(items.map(s => s.cat))];
+
+        for (const cat of cats) {
+          const catItems = items.filter(s => s.cat === cat);
+          if (!catItems.length) continue;
+          html += `
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between px-1">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1">
+                  <span>📌</span> ${esc(cat)}
+                </span>
+                <span class="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700">${catItems.length}</span>
+              </div>
+              <div class="grid grid-cols-1 gap-1">`;
+          html += catItems.map(s => `
+            <button type="button" data-add-service="${esc(s.id)}" class="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border border-slate-200 hover:border-[#ED7100] hover:bg-orange-50/40 text-left transition bg-white shadow-2xs">
+              <svg width="24" height="24" viewBox="0 0 64 64" class="shrink-0">
+                <rect x="0" y="0" width="64" height="64" rx="6" fill="${esc(s.color)}" />
+                <g fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${GLYPHS[s.glyph] || GLYPHS.ec2}</g>
+              </svg>
+              <div class="min-w-0">
+                <div class="text-xs font-semibold text-slate-800 truncate">${esc(s.name)}</div>
+                <div class="text-[10px] text-slate-600 truncate">${esc(s.sub1)}</div>
+              </div>
+            </button>`).join('');
+          html += `</div></div>`;
+        }
+      }
+
+      container.innerHTML = html || '<div class="text-xs text-slate-600 text-center py-8">Sin resultados para la búsqueda</div>';
+      $('cat-count-badge').textContent = totalCount;
+    }
+
+    // ==================== 8. INSPECTOR DE PROPIEDADES ====================
+    function renderInspector() {
+      const body = $('inspector-body');
+      if (!state.selected) {
+        body.innerHTML = `
+          <div class="space-y-3">
+            <div>
+              <label for="inp-diag-title" class="block text-[11px] font-semibold text-slate-600 mb-1">Título del Diagrama</label>
+              <input id="inp-diag-title" type="text" value="${esc(state.title)}" class="w-full px-2.5 py-1.5 rounded border border-slate-300 text-xs focus:outline-none focus:border-[#ED7100]" />
+            </div>
+            <div>
+              <span class="block text-[11px] font-semibold text-slate-600 mb-1">Disciplina Principal</span>
+              <div class="text-xs font-bold uppercase tracking-wide text-indigo-700 bg-indigo-50 border border-indigo-200 p-2 rounded">${esc(state.diagramType)}</div>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-1.5 text-[11px] text-slate-600">
+              <div class="font-bold text-slate-800">Métricas del Lienzo</div>
+              <div class="flex justify-between"><span>Zonas / Pools / Carriles:</span><strong>${state.groups.length}</strong></div>
+              <div class="flex justify-between"><span>Nodos y Componentes:</span><strong>${state.nodes.length}</strong></div>
+              <div class="flex justify-between"><span>Conexiones de Flujo:</span><strong>${state.edges.length}</strong></div>
+            </div>
+          </div>`;
+        $('inp-diag-title').addEventListener('focus', () => { $('inp-diag-title').dataset.snap = takeSnapshot(); });
+        $('inp-diag-title').addEventListener('input', (ev) => { state.title = ev.target.value; saveLocal(); });
+        $('inp-diag-title').addEventListener('blur', (ev) => {
+          const prev = ev.target.dataset.snap;
+          if (prev && prev !== takeSnapshot()) pushHistory(prev);
+        });
+        return;
+      }
+
+      const { kind, id } = state.selected;
+      if (kind === 'node') {
+        const n = state.nodes.find(x => x.id === id);
+        if (!n) return;
+        const colors = ['#16A34A', '#DC2626', '#D97706', '#EAB308', '#2563EB', '#6366F1', '#8B5CF6', '#0D9488', '#08427B', '#ED7100', '#232F3E'];
+        body.innerHTML = `
+          <div class="space-y-3">
+            <div class="text-[11px] font-bold uppercase text-[#ED7100]">Elemento Seleccionado</div>
+            <div>
+              <label for="inp-n-name" class="block text-[11px] font-semibold text-slate-600 mb-1">Nombre</label>
+              <input id="inp-n-name" type="text" value="${esc(n.name)}" class="w-full px-2.5 py-1.5 rounded border border-slate-300 text-xs" />
+            </div>
+            <div>
+              <label for="inp-n-sub1" class="block text-[11px] font-semibold text-slate-600 mb-1">Detalle / Subtítulo / Atributos</label>
+              <textarea id="inp-n-sub1" rows="3" class="w-full px-2.5 py-1.5 rounded border border-slate-300 text-xs font-mono">${esc(n.sub1 || '')}</textarea>
+            </div>
+            <div>
+              <span class="block text-[11px] font-semibold text-slate-600 mb-1">Color Distintivo</span>
+              <div class="flex flex-wrap gap-1.5">
+                ${colors.map(c => `<button type="button" data-n-color="${c}" aria-label="Color ${c}" class="w-6 h-6 rounded border-2 ${n.color === c ? 'border-slate-900 scale-110' : 'border-white'}" style="background:${c}"></button>`).join('')}
+              </div>
+            </div>
+            <div class="flex gap-1.5 pt-2 border-t border-slate-200">
+              <button id="btn-dup-node" type="button" class="flex-1 py-1.5 rounded bg-slate-100 hover:bg-slate-200 font-semibold text-slate-700">Duplicar</button>
+              <button id="btn-del-sel" type="button" class="flex-1 py-1.5 rounded bg-rose-50 hover:bg-rose-100 font-semibold text-rose-700">Eliminar</button>
+            </div>
+          </div>`;
+        ['inp-n-name', 'inp-n-sub1'].forEach(fid => {
+          $(fid).addEventListener('focus', () => { $(fid).dataset.snap = takeSnapshot(); });
+          $(fid).addEventListener('blur', (ev) => {
+            const prev = ev.target.dataset.snap;
+            if (prev && prev !== takeSnapshot()) pushHistory(prev);
+          });
+        });
+        $('inp-n-name').addEventListener('input', e => { n.name = e.target.value; renderAll(); saveLocal(); });
+        $('inp-n-sub1').addEventListener('input', e => { n.sub1 = e.target.value; renderAll(); saveLocal(); });
+        body.querySelectorAll('[data-n-color]').forEach(btn => btn.addEventListener('click', () => {
+          pushHistory(); n.color = btn.dataset.nColor; renderAll(); saveLocal();
+        }));
+        $('btn-dup-node').addEventListener('click', () => {
+          pushHistory();
+          const copy = { ...n, id: nextId('n'), x: n.x + 40, y: n.y + 40 };
+          state.nodes.push(copy);
+          state.selected = { kind: 'node', id: copy.id };
+          renderAll(); renderInspector(); saveLocal();
+        });
+        $('btn-del-sel').addEventListener('click', deleteSelected);
+      } else if (kind === 'group') {
+        const g = state.groups.find(x => x.id === id);
+        if (!g) return;
+        body.innerHTML = `
+          <div class="space-y-3">
+            <div class="text-[11px] font-bold uppercase text-[#8C4FFF]">Zona / Pool / Carril</div>
+            <div>
+              <label for="inp-g-name" class="block text-[11px] font-semibold text-slate-600 mb-1">Nombre</label>
+              <input id="inp-g-name" type="text" value="${esc(g.name)}" class="w-full px-2.5 py-1.5 rounded border border-slate-300 text-xs" />
+            </div>
+            <div>
+              <label for="inp-g-sub" class="block text-[11px] font-semibold text-slate-600 mb-1">Subtítulo / Rol / CIDR</label>
+              <input id="inp-g-sub" type="text" value="${esc(g.sub || '')}" class="w-full px-2.5 py-1.5 rounded border border-slate-300 text-xs" />
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label for="inp-g-w" class="block text-[11px] font-semibold text-slate-600 mb-1">Ancho (px)</label>
+                <input id="inp-g-w" type="number" value="${g.w}" class="w-full px-2 py-1 rounded border border-slate-300 text-xs" />
+              </div>
+              <div>
+                <label for="inp-g-h" class="block text-[11px] font-semibold text-slate-600 mb-1">Alto (px)</label>
+                <input id="inp-g-h" type="number" value="${g.h}" class="w-full px-2 py-1 rounded border border-slate-300 text-xs" />
+              </div>
+            </div>
+            <button id="btn-del-sel" type="button" class="w-full py-1.5 rounded bg-rose-50 hover:bg-rose-100 font-semibold text-rose-700">Eliminar Zona</button>
+          </div>`;
+        ['inp-g-name', 'inp-g-sub', 'inp-g-w', 'inp-g-h'].forEach(fid => {
+          $(fid).addEventListener('focus', () => { $(fid).dataset.snap = takeSnapshot(); });
+          $(fid).addEventListener('blur', (ev) => {
+            const prev = ev.target.dataset.snap;
+            if (prev && prev !== takeSnapshot()) pushHistory(prev);
+          });
+        });
+        $('inp-g-name').addEventListener('input', e => { g.name = e.target.value; renderAll(); saveLocal(); });
+        $('inp-g-sub').addEventListener('input', e => { g.sub = e.target.value; renderAll(); saveLocal(); });
+        $('inp-g-w').addEventListener('input', e => { g.w = Math.max(120, parseInt(e.target.value, 10) || 200); renderAll(); saveLocal(); });
+        $('inp-g-h').addEventListener('input', e => { g.h = Math.max(60, parseInt(e.target.value, 10) || 120); renderAll(); saveLocal(); });
+        $('btn-del-sel').addEventListener('click', deleteSelected);
+      } else if (kind === 'edge') {
+        const e = state.edges.find(x => x.id === id);
+        if (!e) return;
+        body.innerHTML = `
+          <div class="space-y-3">
+            <div class="text-[11px] font-bold uppercase text-slate-700">Flujo / Conector</div>
+            <div>
+              <label for="inp-e-label" class="block text-[11px] font-semibold text-slate-600 mb-1">Etiqueta</label>
+              <input id="inp-e-label" type="text" value="${esc(e.label || '')}" class="w-full px-2.5 py-1.5 rounded border border-slate-300 text-xs" />
+            </div>
+            <div>
+              <label for="inp-e-step" class="block text-[11px] font-semibold text-slate-600 mb-1">Número de Paso</label>
+              <input id="inp-e-step" type="text" value="${esc(e.step || '')}" placeholder="1, 2, 3..." class="w-full px-2.5 py-1.5 rounded border border-slate-300 text-xs" />
+            </div>
+            <div>
+              <label for="sel-e-style" class="block text-[11px] font-semibold text-slate-600 mb-1">Tipo de Flujo</label>
+              <select id="sel-e-style" class="w-full px-2 py-1.5 rounded border border-slate-300 text-xs bg-white">
+                <option value="primary" ${e.style === 'primary' ? 'selected' : ''}>Secuencia Normal (Sólido)</option>
+                <option value="async" ${e.style === 'async' ? 'selected' : ''}>Flujo de Mensaje (Azul Discontinuo)</option>
+                <option value="sec" ${e.style === 'sec' ? 'selected' : ''}>Flujo de Excepción (Rojo Discontinuo)</option>
+              </select>
+            </div>
+            <button id="btn-del-sel" type="button" class="w-full py-1.5 rounded bg-rose-50 hover:bg-rose-100 font-semibold text-rose-700">Eliminar Conector</button>
+          </div>`;
+        ['inp-e-label', 'inp-e-step'].forEach(fid => {
+          $(fid).addEventListener('focus', () => { $(fid).dataset.snap = takeSnapshot(); });
+          $(fid).addEventListener('blur', (ev) => {
+            const prev = ev.target.dataset.snap;
+            if (prev && prev !== takeSnapshot()) pushHistory(prev);
+          });
+        });
+        $('inp-e-label').addEventListener('input', ev => { e.label = ev.target.value; renderAll(); saveLocal(); });
+        $('inp-e-step').addEventListener('input', ev => { e.step = ev.target.value; renderAll(); saveLocal(); });
+        $('sel-e-style').addEventListener('change', ev => { pushHistory(); e.style = ev.target.value; renderAll(); saveLocal(); });
+        $('btn-del-sel').addEventListener('click', deleteSelected);
+      }
+    }
+
+    function deleteSelected() {
+      if (!state.selected) return;
+      pushHistory();
+      const { kind, id } = state.selected;
+      if (kind === 'node') {
+        state.nodes = state.nodes.filter(x => x.id !== id);
+        state.edges = state.edges.filter(x => x.source !== id && x.target !== id);
+      } else if (kind === 'group') {
+        state.groups = state.groups.filter(x => x.id !== id);
+      } else if (kind === 'edge') {
+        state.edges = state.edges.filter(x => x.id !== id);
+      }
+      state.selected = null;
+      renderAll();
+      renderInspector();
+      saveLocal();
+      showToast('Elemento eliminado');
+    }
+
+    // ==================== 9. INTERACCIÓN DE ARRASTRE Y CONEXIÓN ====================
+    let dragState = null;
+
+    function setTool(t) {
+      state.tool = t;
+      $('btn-tool-select').className = t === 'select'
+        ? 'px-2.5 py-1 rounded text-xs font-medium bg-[#ED7100] text-white transition'
+        : 'px-2.5 py-1 rounded text-xs font-medium text-slate-200 hover:bg-slate-700 transition';
+      $('btn-tool-connect').className = t === 'connect'
+        ? 'px-2.5 py-1 rounded text-xs font-medium bg-[#8C4FFF] text-white transition'
+        : 'px-2.5 py-1 rounded text-xs font-medium text-slate-200 hover:bg-slate-700 transition';
+      $('connect-banner').classList.toggle('hidden', t !== 'connect');
+      if (t !== 'connect') state.connectFrom = null;
+      renderAll();
+    }
+
+    svgEl.addEventListener('pointerdown', (ev) => {
+      const portEl = ev.target.closest('.port-handle');
+      if (portEl) {
+        ev.stopPropagation();
+        const nid = portEl.dataset.port;
+        if (!state.connectFrom) {
+          state.connectFrom = nid;
+          setTool('connect');
+          showToast('Selecciona el nodo destino para conectar');
+        } else if (state.connectFrom !== nid) {
+          pushHistory();
+          state.edges.push({
+            id: nextId('e'),
+            source: state.connectFrom,
+            target: nid,
+            label: '',
+            style: 'primary',
+            step: String(state.edges.length + 1)
+          });
+          state.connectFrom = null;
+          setTool('select');
+          renderAll();
+          saveLocal();
+          showToast('Nodos conectados');
+        }
+        return;
+      }
+
+      const resizeEl = ev.target.closest('.resize-handle');
+      if (resizeEl) {
+        ev.stopPropagation();
+        const gid = resizeEl.dataset.resize;
+        const g = state.groups.find(x => x.id === gid);
+        if (!g) return;
+        dragState = { kind: 'resize-group', group: g, startX: ev.clientX, startY: ev.clientY, origW: g.w, origH: g.h, preSnap: takeSnapshot() };
+        return;
+      }
+
+      const nodeG = ev.target.closest('[data-kind]');
+      if (nodeG) {
+        ev.stopPropagation();
+        const kind = nodeG.dataset.kind;
+        const id = nodeG.dataset.id;
+
+        if (state.tool === 'connect' && kind === 'node') {
+          if (!state.connectFrom) {
+            state.connectFrom = id;
+            showToast('Selecciona el nodo destino');
+            renderAll();
+          } else if (state.connectFrom !== id) {
+            pushHistory();
+            state.edges.push({
+              id: nextId('e'),
+              source: state.connectFrom,
+              target: id,
+              label: '',
+              style: 'primary',
+              step: String(state.edges.length + 1)
+            });
+            state.connectFrom = null;
+            setTool('select');
+            renderAll();
+            saveLocal();
+            showToast('Nodos conectados');
+          }
+          return;
+        }
+
+        state.selected = { kind, id };
+        renderAll();
+        renderInspector();
+
+        if (kind === 'node') {
+          const n = state.nodes.find(x => x.id === id);
+          if (n) {
+            dragState = { kind: 'node', node: n, startX: ev.clientX, startY: ev.clientY, origX: n.x, origY: n.y, preSnap: takeSnapshot() };
+          }
+        } else if (kind === 'group') {
+          const g = state.groups.find(x => x.id === id);
+          if (g) {
+            const children = state.nodes.filter(n => n.x >= g.x && n.x <= g.x + g.w && n.y >= g.y && n.y <= g.y + g.h);
+            const subGroups = state.groups.filter(sg => sg.id !== g.id && sg.x >= g.x && sg.x + sg.w <= g.x + g.w && sg.y >= g.y && sg.y + sg.h <= g.y + g.h);
+            dragState = {
+              kind: 'group',
+              group: g,
+              startX: ev.clientX,
+              startY: ev.clientY,
+              origX: g.x,
+              origY: g.y,
+              preSnap: takeSnapshot(),
+              childSnapshots: children.map(c => ({ node: c, ox: c.x, oy: c.y })),
+              subGroupSnapshots: subGroups.map(sg => ({ group: sg, ox: sg.x, oy: sg.y })),
+            };
+          }
+        }
+        return;
+      }
+
+      // Pan Canvas
+      state.selected = null;
+      renderAll();
+      renderInspector();
+      dragState = { kind: 'pan', startX: ev.clientX, startY: ev.clientY, origPanX: state.panX, origPanY: state.panY };
+    });
+
+    window.addEventListener('pointermove', (ev) => {
+      if (!dragState) return;
+      const dx = (ev.clientX - dragState.startX) / state.zoom;
+      const dy = (ev.clientY - dragState.startY) / state.zoom;
+
+      if (dragState.kind === 'node') {
+        dragState.node.x = Math.round(dragState.origX + dx);
+        dragState.node.y = Math.round(dragState.origY + dy);
+        renderAll();
+      } else if (dragState.kind === 'group') {
+        const deltaX = Math.round(dx);
+        const deltaY = Math.round(dy);
+        dragState.group.x = dragState.origX + deltaX;
+        dragState.group.y = dragState.origY + deltaY;
+        dragState.childSnapshots.forEach(s => { s.node.x = s.ox + deltaX; s.node.y = s.oy + deltaY; });
+        dragState.subGroupSnapshots.forEach(s => { s.group.x = s.ox + deltaX; s.group.y = s.oy + deltaY; });
+        renderAll();
+      } else if (dragState.kind === 'resize-group') {
+        dragState.group.w = Math.max(120, Math.round(dragState.origW + dx));
+        dragState.group.h = Math.max(60, Math.round(dragState.origH + dy));
+        renderAll();
+      } else if (dragState.kind === 'pan') {
+        state.panX = Math.round(dragState.origPanX + (ev.clientX - dragState.startX));
+        state.panY = Math.round(dragState.origPanY + (ev.clientY - dragState.startY));
+        updateTransform();
+      }
+    });
+
+    window.addEventListener('pointerup', () => {
+      if (dragState) {
+        if (dragState.preSnap && dragState.preSnap !== takeSnapshot()) {
+          pushHistory(dragState.preSnap);
+        }
+        dragState = null;
+        saveLocal();
+      }
+    });
+
+    svgEl.addEventListener('wheel', (ev) => {
+      ev.preventDefault();
+      const factor = ev.deltaY < 0 ? 1.08 : 0.92;
+      state.zoom = Math.min(2.2, Math.max(0.3, state.zoom * factor));
+      updateTransform();
+    }, { passive: false });
+
+    function fitToScreen() {
+      const rect = svgEl.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      state.groups.forEach(g => { minX = Math.min(minX, g.x); minY = Math.min(minY, g.y); maxX = Math.max(maxX, g.x + g.w); maxY = Math.max(maxY, g.y + g.h); });
+      state.nodes.forEach(n => { minX = Math.min(minX, n.x); minY = Math.min(minY, n.y); maxX = Math.max(maxX, n.x + (n.w || 110)); maxY = Math.max(maxY, n.y + (n.h || 110)); });
+      if (!isFinite(minX)) { state.zoom = 1; state.panX = 40; state.panY = 40; updateTransform(); return; }
+      const bw = maxX - minX + 80;
+      const bh = maxY - minY + 80;
+      state.zoom = Math.min(1.15, Math.max(0.35, Math.min(rect.width / bw, rect.height / bh)));
+      state.panX = Math.round((rect.width - bw * state.zoom) / 2 - (minX - 40) * state.zoom);
+      state.panY = Math.round((rect.height - bh * state.zoom) / 2 - (minY - 40) * state.zoom);
+      updateTransform();
+    }
+
+    // ==================== 10. EXPORTADORES DRAW.IO & SVG ====================
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function sanitizeFileSlug(raw) {
+      const slug = String(raw || '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 64);
+      return slug || 'diagrama_openarchitecto';
+    }
+
+    function exportDrawio() {
+      const cells = ['<mxCell id="0" />', '<mxCell id="1" parent="0" />'];
+      const bgHex = state.dark ? '#1A232E' : '#FFFFFF';
+      const defaultEdgeStroke = state.dark ? '#E2E8F0' : '#232F3E';
+
+      for (const g of state.groups) {
+        const meta = getGroupMeta(g.type);
+        const label = g.sub ? `${g.name}\n${g.sub}` : g.name;
+        let style = '';
+        if (g.type === 'bpmn_pool') {
+          style = `swimlane;horizontal=0;swimlaneFillColor=#FFFFFF;strokeColor=${meta.stroke};strokeWidth=2;fontStyle=1;startSize=34;`;
+        } else if (g.type === 'bpmn_lane') {
+          style = `swimlane;horizontal=0;swimlaneFillColor=#FFFFFF;strokeColor=${meta.stroke};dashed=1;fontStyle=1;startSize=28;`;
+        } else if (g.type === 'bpmn_subproc') {
+          style = `rounded=1;arcSize=8;whiteSpace=wrap;html=1;strokeColor=${meta.stroke};strokeWidth=1.8;fillColor=#FFFFFF;`;
+        } else {
+          style = `rounded=0;dashed=${meta.dashed ? 1 : 0};fillColor=none;strokeColor=${meta.stroke};strokeWidth=1.5;align=left;spacingLeft=10;`;
+        }
+        cells.push(`<mxCell id="${esc(g.id)}" value="${escDrawio(label)}" style="${esc(style)}" vertex="1" parent="1"><mxGeometry x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}" as="geometry" /></mxCell>`);
+      }
+
+      for (const rawNode of state.nodes) {
+        const n = resolveNodeMeta(rawNode);
+        const tpl = n.tpl || '';
+        if (tpl === 'bpmn_pool') continue;
+
+        const label = n.sub1 ? `${n.name}\n${n.sub1}` : n.name;
+        let style = '';
+        let w = n.w || 72, h = n.h || 72;
+
+        if (isBpmnTask(tpl)) {
+          style = `rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=${n.color || '#475569'};strokeWidth=1.5;fontStyle=1;`;
+        } else if (tpl.startsWith('bpmn_gw')) {
+          style = `rhombus;whiteSpace=wrap;html=1;fillColor=#FEF08A;strokeColor=#CA8A04;fontStyle=1;`;
+        } else if (tpl.startsWith('bpmn_start')) {
+          style = `ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#DCFCE7;strokeColor=#16A34A;strokeWidth=2;fontStyle=1;`;
+        } else if (tpl.startsWith('bpmn_end')) {
+          style = `ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#FEE2E2;strokeColor=#DC2626;strokeWidth=${tpl === 'bpmn_end_term' ? 5 : 4};fontStyle=1;`;
+        } else if (tpl.startsWith('bpmn_timer') || tpl.startsWith('bpmn_msg') || tpl === 'bpmn_error' || tpl === 'bpmn_link') {
+          style = `ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#FEF3C7;strokeColor=#D97706;strokeWidth=2;fontStyle=1;`;
+        } else if (tpl === 'bpmn_data_object') {
+          style = `shape=note;whiteSpace=wrap;html=1;size=14;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#475569;`;
+        } else if (tpl === 'bpmn_data_store') {
+          style = `shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;size=10;fillColor=#FFFFFF;strokeColor=#475569;`;
+        } else if (tpl === 'bpmn_annotation') {
+          style = `shape=singleBracket;whiteSpace=wrap;html=1;rounded=0;strokeColor=#64748B;fillColor=none;align=left;verticalAlign=top;`;
+        } else if (tpl === 'uml_class') {
+          style = `swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;fillColor=#EFF6FF;strokeColor=#2563EB;`;
+        } else if (tpl === 'uml_interface') {
+          style = `html=1;whiteSpace=wrap;fillColor=#E0F2FE;strokeColor=#0284C7;fontStyle=1;`;
+        } else if (tpl === 'uml_usecase') {
+          style = `ellipse;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#7C3AED;fontStyle=1;`;
+        } else if (tpl === 'uml_lifeline') {
+          style = `shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;fillColor=#F0FDFA;strokeColor=#0D9488;`;
+        } else if (tpl === 'uml_state') {
+          style = `rounded=1;arcSize=25;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;fontStyle=1;`;
+        } else if (tpl === 'uml_component') {
+          style = `shape=module;align=center;verticalAlign=top;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#059669;fontStyle=1;`;
+        } else if (tpl === 'uml_actor') {
+          style = `shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#F8FAFC;strokeColor=#475569;`;
+        } else if (tpl === 'c4_person') {
+          style = `shape=mxgraph.c4.person2;whiteSpace=wrap;html=1;fillColor=#08427B;strokeColor=#08427B;fontColor=#FFFFFF;`;
+        } else if (tpl === 'c4_db') {
+          style = `shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#438DD5;strokeColor=#2E6295;fontColor=#FFFFFF;`;
+        } else if (tpl === 'c4_system' || tpl === 'c4_container' || tpl === 'c4_comp' || tpl === 'c4_component') {
+          style = `rounded=1;whiteSpace=wrap;html=1;fillColor=${tpl === 'c4_system' ? '#1168BD' : '#438DD5'};strokeColor=#0B4884;fontColor=#FFFFFF;`;
+        } else if (tpl === 'erd_table') {
+          style = `shape=table;startSize=28;container=1;collapsible=0;childLayout=tableLayout;fillColor=#F0FDFA;strokeColor=#0F766E;fontStyle=1;`;
+        } else if (tpl === 'erd_rel' || tpl === 'fc_decision') {
+          style = `rhombus;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;fontStyle=1;`;
+        } else if (tpl === 'fc_term') {
+          style = `rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#7C3AED;fontStyle=1;`;
+        } else if (tpl === 'fc_io') {
+          style = `shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#ECFDF5;strokeColor=#059669;`;
+        } else if (tpl === 'fc_doc') {
+          style = `shape=document;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#ECFEFF;strokeColor=#0891B2;`;
+        } else if (tpl === 'fc_process') {
+          style = `rounded=0;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#2563EB;fontStyle=1;`;
+        } else {
+          style = `rounded=1;fillColor=${n.color || '#ED7100'};strokeColor=#ffffff;fontColor=${state.dark ? '#F8FAFC' : '#232F3E'};verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;aspect=fixed;whiteSpace=wrap;`;
+        }
+
+        const containingGroups = state.groups.filter(g => n.x >= g.x && n.x + w <= g.x + g.w && n.y >= g.y && n.y + h <= g.y + g.h);
+        containingGroups.sort((a, b) => (a.w * a.h) - (b.w * b.h));
+        const parentGroup = containingGroups[0];
+        const parentId = parentGroup ? parentGroup.id : '1';
+        const rx = parentGroup ? n.x - parentGroup.x : n.x;
+        const ry = parentGroup ? n.y - parentGroup.y : n.y;
+
+        cells.push(`<mxCell id="${esc(n.id)}" value="${escDrawio(label)}" style="${esc(style)}" vertex="1" parent="${esc(parentId)}"><mxGeometry x="${rx}" y="${ry}" width="${w}" height="${h}" as="geometry" /></mxCell>`);
+      }
+
+      for (const e of state.edges) {
+        const stroke = e.style === 'async' ? '#147EBA' : e.style === 'sec' ? '#DD344C' : defaultEdgeStroke;
+        const dashed = e.style === 'primary' ? '0' : '1';
+        const style = `edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;dashed=${dashed};strokeColor=${stroke};endArrow=classic;endFill=1;fontSize=10;fontColor=${stroke};labelBackgroundColor=${bgHex};`;
+        const edgeLbl = e.label || '';
+        const val = e.step ? (edgeLbl ? `${e.step}. ${edgeLbl}` : `${e.step}`) : edgeLbl;
+        cells.push(`<mxCell id="${esc(e.id)}" value="${escDrawio(val)}" style="${esc(style)}" edge="1" parent="1" source="${esc(e.source)}" target="${esc(e.target)}"><mxGeometry relative="1" as="geometry" /></mxCell>`);
+      }
+
+      const fname = `${sanitizeFileSlug(state.title)}.drawio`;
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="OpenArchitecto Studio" modified="${esc(new Date().toISOString())}" agent="OpenArchitecto/2.1" version="24.7.0" type="device">
+  <diagram id="architect-diagram" name="${esc(state.title || 'Architecture')}">
+    <mxGraphModel dx="1600" dy="960" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="960" math="0" shadow="0" background="${bgHex}">
+      <root>
+        ${cells.join('\n        ')}
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>`;
+      downloadBlob(new Blob([xml], { type: 'application/xml;charset=utf-8' }), fname);
+      showToast(`Exportado ${fname}`);
+    }
+
+    function buildStandaloneSvgString() {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      state.groups.forEach(g => { minX = Math.min(minX, g.x); minY = Math.min(minY, g.y); maxX = Math.max(maxX, g.x + g.w); maxY = Math.max(maxY, g.y + g.h); });
+      state.nodes.forEach(n => {
+        const w = n.w || 64;
+        const h = n.h || 64;
+        minX = Math.min(minX, n.x - 50);
+        minY = Math.min(minY, n.y - 16);
+        maxX = Math.max(maxX, n.x + w + 50);
+        maxY = Math.max(maxY, n.y + h + 46);
+      });
+      if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 800; maxY = 500; }
+      const pad = 40;
+      const w = Math.max(600, Math.round(maxX - minX + pad * 2));
+      const h = Math.max(400, Math.round(maxY - minY + pad * 2 + 44));
+      const bg = state.dark ? '#1A232E' : '#FFFFFF';
+      const titleColor = state.dark ? '#F8FAFC' : '#232F3E';
+
+      const prevSel = state.selected;
+      state.selected = null;
+      renderAll();
+      const innerContent = `${layerGroups.innerHTML}${layerEdges.innerHTML}${layerNodes.innerHTML}`;
+      state.selected = prevSel;
+      renderAll();
+
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  <defs>
+    <style>
+      text { font-family: 'Inter', -apple-system, 'Segoe UI', Arial, sans-serif; }
+      .port-handle, .resize-handle, .node-hover-ring { display: none; opacity: 0; }
+    </style>
+    ${svgEl.querySelector('defs').innerHTML}
+  </defs>
+  <rect width="${w}" height="${h}" fill="${bg}" />
+  <text x="${pad}" y="34" font-size="18" font-weight="700" fill="${titleColor}">${esc(state.title || 'Architecture Diagram')}</text>
+  <g transform="translate(${pad - minX}, ${pad + 44 - minY})">
+    ${innerContent}
+  </g>
+</svg>`;
+    }
+
+    // ==================== 11. REST API SYNC & TEMPLATES ====================
+    function isHttpOrigin() {
+      return window.location.protocol === 'http:' || window.location.protocol === 'https:';
+    }
+
+    async function fetchServerDiagrams() {
+      const listEl = $('server-diagrams-list');
+      if (!isHttpOrigin()) {
+        listEl.innerHTML = '<div class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-3">Abriste el archivo localmente (<code>file://</code>). Ejecuta <code>npm start</code> o <code>./iniciar.sh</code> y abre <code>http://localhost:5173</code> para habilitar sincronización con servidor/MCP.</div>';
+        return;
+      }
+      try {
+        const res = await fetch('/api/diagrams');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const list = await res.json();
+        if (!list.length) {
+          listEl.innerHTML = '<div class="text-xs text-slate-600 text-center py-4">No hay diagramas guardados en el servidor local.</div>';
+          return;
+        }
+        listEl.innerHTML = list.map(item => `
+          <div class="flex items-center justify-between p-2.5 rounded bg-white border border-slate-200 hover:border-indigo-400 transition">
+            <div class="min-w-0">
+              <div class="text-xs font-bold text-slate-800 truncate">${esc(item.title || item.filename)}</div>
+              <div class="text-[10px] text-slate-600">Tipo: <span class="uppercase font-semibold text-indigo-700">${esc(item.diagramType || 'general')}</span> • ${Number(item.nodeCount) || 0} nodos • ${new Date(item.updatedAt).toLocaleTimeString()}</div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button type="button" data-load-srv="${esc(item.filename)}" class="px-2.5 py-1 text-xs rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold transition">Cargar</button>
+              <button type="button" data-del-srv="${esc(item.filename)}" aria-label="Eliminar ${esc(item.filename)}" class="px-2 py-1 text-xs rounded hover:bg-rose-50 text-rose-600 font-semibold transition">✕</button>
+            </div>
+          </div>
+        `).join('');
+
+        listEl.querySelectorAll('[data-load-srv]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            try {
+              const fname = btn.dataset.loadSrv;
+              const dRes = await fetch(`/api/diagrams/${encodeURIComponent(fname)}`);
+              if (!dRes.ok) throw new Error(`HTTP ${dRes.status}`);
+              const diag = await dRes.json();
+              loadTemplateData(diag);
+              $('modal-server-sync').classList.add('hidden');
+              showToast(`Diagrama '${diag.title || fname}' cargado`);
+            } catch (err) {
+              showToast(`Error cargando diagrama: ${err.message}`);
+            }
+          });
+        });
+
+        listEl.querySelectorAll('[data-del-srv]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const fname = btn.dataset.delSrv;
+            if (!btn.dataset.confirmed) {
+              btn.dataset.confirmed = '1';
+              btn.textContent = 'Confirmar';
+              btn.classList.add('bg-rose-600', 'text-white');
+              setTimeout(() => {
+                if (btn.isConnected && btn.dataset.confirmed) {
+                  delete btn.dataset.confirmed;
+                  btn.textContent = '✕';
+                  btn.classList.remove('bg-rose-600', 'text-white');
+                }
+              }, 3000);
+              return;
+            }
+            try {
+              const delRes = await fetch(`/api/diagrams/${encodeURIComponent(fname)}`, { method: 'DELETE' });
+              if (!delRes.ok) throw new Error(`HTTP ${delRes.status}`);
+              showToast(`Eliminado '${fname}'`);
+              fetchServerDiagrams();
+            } catch (err) {
+              showToast(`Error eliminando: ${err.message}`);
+            }
+          });
+        });
+      } catch (err) {
+        showToast(`Error al consultar servidor: ${err.message}`);
+      }
+    }
+
+    async function saveCurrentToServer() {
+      if (!currentUser.loggedIn) {
+        showToast('Modo Invitado activo: inicia sesión para guardar en servidor');
+        return;
+      }
+      if (!isHttpOrigin()) {
+        showToast('Sincronización HTTP requiere abrir vía http://localhost:5173');
+        return;
+      }
+      const inp = $('srv-save-name');
+      const name = (inp && inp.value.trim()) || state.title || `diagrama_${Date.now()}`;
+      try {
+        const payload = {
+          title: name,
+          filename: sanitizeFileSlug(name),
+          diagramType: state.diagramType,
+          groups: state.groups,
+          nodes: state.nodes,
+          edges: state.edges,
+          dark: state.dark
+        };
+        const res = await fetch('/api/diagrams', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.error || `HTTP ${res.status}`);
+        }
+        showToast(`Guardado en servidor como '${payload.filename}.json'`);
+        fetchServerDiagrams();
+      } catch (err) {
+        showToast(`Error al guardar: ${err.message}`);
+      }
+    }
+
+    function loadTemplateData(tData) {
+      if (presState.active) exitPresentation();
+      pushHistory();
+      state.title = tData.title || 'Nuevo Diagrama';
+      state.diagramType = tData.diagramType || activeDomain;
+      if (tData.dark !== undefined) state.dark = Boolean(tData.dark);
+      state.groups = JSON.parse(JSON.stringify(tData.groups || []));
+      state.nodes = JSON.parse(JSON.stringify(tData.nodes || [])).map(resolveNodeMeta);
+      state.edges = JSON.parse(JSON.stringify(tData.edges || []));
+      state.selected = null;
+
+      if (['bpmn', 'cloud', 'uml', 'c4', 'erd', 'flowchart'].includes(state.diagramType)) {
+        activeDomain = state.diagramType;
+        if ($('domain-select')) $('domain-select').value = activeDomain;
+        renderCatalog();
+      }
+      syncUidCounter();
+      renderAll();
+      renderInspector();
+      fitToScreen();
+      saveLocal();
+    }
+
+    function generateFromText(text) {
+      const lower = text.toLowerCase();
+      let type = activeDomain === 'all' || activeDomain === 'groups' ? 'cloud' : activeDomain;
+      if (/(bpmn|swimlane|pool|compuerta|xor)/.test(lower)) type = 'bpmn';
+      else if (/(uml|clase|secuencia|interface)/.test(lower)) type = 'uml';
+      else if (/(c4|software system|container)/.test(lower)) type = 'c4';
+      else if (/(erd|entidad|tabla|pk |fk )/.test(lower)) type = 'erd';
+      else if (/(flujo|flowchart|algoritmo|decision)/.test(lower)) type = 'flowchart';
+      else if (/(aws|cloud|cloudflare|waf|caddy|rds|s3|postgres|redis|kafka|k8s)/.test(lower)) type = 'cloud';
+
+      const parts = text.split(/\s*(?:-->|->|=>|→|;)\s*/).map(s => s.trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        const inferTpl = (lbl) => {
+          const s = lbl.toLowerCase();
+          if (type === 'bpmn') {
+            if (/(inicio|start)/.test(s)) return 'bpmn_start';
+            if (/(fin|end|cierre)/.test(s)) return 'bpmn_end_term';
+            if (/(xor|\?|validar|decision)/.test(s)) return 'bpmn_gw_xor';
+            if (/(api|servicio|auto|emitir)/.test(s)) return 'bpmn_service_task';
+            if (/(doc|ficha|receta)/.test(s)) return 'bpmn_data_object';
+            return 'bpmn_user_task';
+          }
+          if (type === 'c4') {
+            if (/(usuario|persona|cliente)/.test(s)) return 'c4_person';
+            if (/(db|postgres|mysql|base de datos|minio|s3)/.test(s)) return 'c4_db';
+            return 'c4_container';
+          }
+          if (type === 'uml') return /(interface)/.test(s) ? 'uml_interface' : 'uml_class';
+          if (type === 'erd') return 'erd_table';
+          if (type === 'flowchart') return /(\?|si|no|decision)/.test(s) ? 'fc_decision' : /(inicio|fin)/.test(s) ? 'fc_term' : 'fc_process';
+          if (/(usuario|user|cliente)/.test(s)) return 'users';
+          if (/(cloudflare|waf|shield)/.test(s)) return 'waf';
+          if (/(alb|caddy|nginx|gateway)/.test(s)) return 'alb';
+          if (/(postgres|rds|sql|db)/.test(s)) return 'rds';
+          if (/(minio|s3|storage)/.test(s)) return 's3';
+          if (/(redis|cache)/.test(s)) return 'redis';
+          if (/(kafka|stream)/.test(s)) return 'kafka';
+          if (/(lambda)/.test(s)) return 'lambda';
+          if (/(react|next|frontend)/.test(s)) return 'react';
+          return 'ecs';
+        };
+
+        const cols = 4;
+        const nodes = parts.map((rawName, idx) => {
+          const tpl = inferTpl(rawName);
+          const meta = SERVICE_CATALOG.find(x => x.id === tpl);
+          return {
+            id: nextId('n'),
+            tpl,
+            name: rawName.slice(0, 48),
+            sub1: meta ? meta.sub1 : '',
+            color: meta?.color,
+            glyph: meta?.glyph,
+            standalone: meta?.standalone || '',
+            x: 120 + (idx % cols) * 230,
+            y: 160 + Math.floor(idx / cols) * 165
+          };
+        });
+        const edges = nodes.slice(0, -1).map((src, idx) => ({
+          id: nextId('e'),
+          source: src.id,
+          target: nodes[idx + 1].id,
+          label: type === 'bpmn' ? 'Siguiente' : 'Flujo',
+          style: 'primary',
+          step: String(idx + 1)
+        }));
+        const maxX = Math.max(...nodes.map(n => n.x)) + 200;
+        const maxY = Math.max(...nodes.map(n => n.y)) + 150;
+        const gType = type === 'bpmn' ? 'bpmn_pool' : type === 'c4' ? 'c4_boundary' : type === 'uml' ? 'uml_package' : type === 'cloud' ? 'vpc' : null;
+        const groups = gType ? [{
+          id: nextId('g'),
+          type: gType,
+          name: `${type.toUpperCase()}: ${text.slice(0, 42)}`,
+          sub: 'Generado automáticamente',
+          x: 60, y: 70, w: Math.max(520, maxX - 40), h: Math.max(300, maxY - 40)
+        }] : [];
+        loadTemplateData({ title: `Diagrama: ${text.slice(0, 56)}`, diagramType: type, groups, nodes, edges });
+        showToast('Diagrama generado desde flujo textual');
+        return;
+      }
+
+      if (type === 'bpmn') {
+        const tpl = TEMPLATES.find(t => t.id === 'bpmn-telemedicina');
+        if (tpl) { loadTemplateData(tpl.data); return; }
+      }
+      if (type === 'uml') {
+        const tpl = TEMPLATES.find(t => t.id === 'uml-class-medicapp');
+        if (tpl) { loadTemplateData(tpl.data); return; }
+      }
+      if (type === 'c4') {
+        const tpl = TEMPLATES.find(t => t.id === 'c4-containers');
+        if (tpl) { loadTemplateData(tpl.data); return; }
+      }
+      const tpl = TEMPLATES.find(t => t.id === 'medicapp-cloud');
+      if (tpl) loadTemplateData(tpl.data);
+    }
+
+    // ==================== 12. EVENT WIRING ====================
+    $('btn-tool-select').addEventListener('click', () => setTool('select'));
+    $('btn-tool-connect').addEventListener('click', () => setTool('connect'));
+    $('btn-cancel-connect').addEventListener('click', () => setTool('select'));
+    $('btn-undo').addEventListener('click', undo);
+    $('btn-redo').addEventListener('click', redo);
+    $('btn-theme').addEventListener('click', () => { state.dark = !state.dark; renderAll(); saveLocal(); });
+    $('btn-zoom-in').addEventListener('click', () => { state.zoom = Math.min(2.2, state.zoom * 1.15); updateTransform(); });
+    $('btn-zoom-out').addEventListener('click', () => { state.zoom = Math.max(0.3, state.zoom * 0.85); updateTransform(); });
+    $('btn-fit').addEventListener('click', fitToScreen);
+
+    $('btn-clear-canvas').addEventListener('click', () => {
+      const btn = $('btn-clear-canvas');
+      if (!btn.dataset.confirmed) {
+        btn.dataset.confirmed = '1';
+        btn.textContent = '¿Confirmar?';
+        setTimeout(() => {
+          if (btn.isConnected && btn.dataset.confirmed) {
+            delete btn.dataset.confirmed;
+            btn.textContent = 'Limpiar';
+          }
+        }, 3000);
+        return;
+      }
+      delete btn.dataset.confirmed;
+      btn.textContent = 'Limpiar';
+      if (presState.active) exitPresentation();
+      pushHistory();
+      state.groups = []; state.nodes = []; state.edges = []; state.selected = null;
+      renderAll();
+      renderInspector();
+      saveLocal();
+      showToast('Lienzo limpiado');
+    });
+
+    // Domain Dropdown Change
+    $('domain-select').addEventListener('change', (ev) => {
+      activeDomain = ev.target.value;
+      if (activeDomain !== 'all' && activeDomain !== 'groups') {
+        state.diagramType = activeDomain;
+      }
+      renderCatalog();
+      renderInspector();
+      saveLocal();
+    });
+
+    $('catalog-search').addEventListener('input', renderCatalog);
+
+    $('catalog-list').addEventListener('click', (ev) => {
+      const gBtn = ev.target.closest('[data-add-group]');
+      if (gBtn) {
+        const meta = getGroupMeta(gBtn.dataset.addGroup);
+        pushHistory();
+        const isPool = meta.type === 'bpmn_pool';
+        const isLane = meta.type === 'bpmn_lane';
+        const g = {
+          id: nextId('g'),
+          type: meta.type,
+          name: meta.name,
+          sub: meta.sub,
+          x: 180 + (state.groups.length * 20) % 120,
+          y: 80 + (state.groups.length * 20) % 100,
+          w: isPool ? 880 : isLane ? 820 : 360,
+          h: isPool ? 480 : isLane ? 150 : 260
+        };
+        state.groups.push(g);
+        state.selected = { kind: 'group', id: g.id };
+        renderAll();
+        renderInspector();
+        saveLocal();
+        return;
+      }
+      const sBtn = ev.target.closest('[data-add-service]');
+      if (sBtn) {
+        const meta = SERVICE_CATALOG.find(x => x.id === sBtn.dataset.addService);
+        if (!meta) return;
+        pushHistory();
+        const n = {
+          id: nextId('n'), tpl: meta.id, name: meta.name, sub1: meta.sub1,
+          color: meta.color, glyph: meta.glyph, resIcon: meta.resIcon || '', standalone: meta.standalone || '',
+          x: 320 + (state.nodes.length * 30) % 240, y: 160 + (state.nodes.length * 25) % 180,
+        };
+        state.nodes.push(n);
+        state.selected = { kind: 'node', id: n.id };
+        renderAll();
+        renderInspector();
+        saveLocal();
+      }
+    });
+
+    // Export Dropdown
+    $('btn-export-menu').addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const dd = $('export-dropdown');
+      const hidden = dd.classList.toggle('hidden');
+      $('btn-export-menu').setAttribute('aria-expanded', String(!hidden));
+    });
+    window.addEventListener('click', () => {
+      $('export-dropdown').classList.add('hidden');
+      $('btn-export-menu').setAttribute('aria-expanded', 'false');
+    });
+
+    $('exp-drawio').addEventListener('click', exportDrawio);
+    $('exp-svg').addEventListener('click', () => {
+      const fname = `${sanitizeFileSlug(state.title)}.svg`;
+      downloadBlob(new Blob([buildStandaloneSvgString()], { type: 'image/svg+xml;charset=utf-8' }), fname);
+      showToast(`Exportado ${fname}`);
+    });
+    $('exp-png').addEventListener('click', () => {
+      try {
+        const svgStr = buildStandaloneSvgString();
+        const url = URL.createObjectURL(new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' }));
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const scale = 2;
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width * scale; canvas.height = img.height * scale;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(scale, scale);
+            ctx.drawImage(img, 0, 0);
+            const fname = `${sanitizeFileSlug(state.title)}_2x.png`;
+            canvas.toBlob(b => {
+              URL.revokeObjectURL(url);
+              if (!b) { showToast('No se pudo renderizar el PNG'); return; }
+              downloadBlob(b, fname);
+              showToast(`Exportado ${fname}`);
+            });
+          } catch (err) {
+            URL.revokeObjectURL(url);
+            showToast(`Error exportando PNG: ${err.message}`);
+          }
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          showToast('Error al rasterizar SVG a PNG');
+        };
+        img.src = url;
+      } catch (err) {
+        showToast(`Error PNG: ${err.message}`);
+      }
+    });
+
+    $('exp-save-srv').addEventListener('click', () => {
+      if ($('srv-save-name')) $('srv-save-name').value = state.title || '';
+      $('modal-server-sync').classList.remove('hidden');
+      fetchServerDiagrams();
+    });
+    $('exp-load-srv').addEventListener('click', () => {
+      if ($('srv-save-name')) $('srv-save-name').value = state.title || '';
+      $('modal-server-sync').classList.remove('hidden');
+      fetchServerDiagrams();
+    });
+
+    $('exp-json').addEventListener('click', () => {
+      const fname = `${sanitizeFileSlug(state.title)}.json`;
+      const data = JSON.stringify({ title: state.title, diagramType: state.diagramType, dark: state.dark, groups: state.groups, nodes: state.nodes, edges: state.edges }, null, 2);
+      downloadBlob(new Blob([data], { type: 'application/json' }), fname);
+      showToast(`Proyecto descargado (${fname})`);
+    });
+
+    $('imp-json').addEventListener('click', () => $('file-json-input').click());
+    $('file-json-input').addEventListener('change', (ev) => {
+      const file = ev.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          if (Array.isArray(parsed.nodes) && Array.isArray(parsed.groups)) {
+            loadTemplateData(parsed);
+            showToast('Proyecto cargado exitosamente');
+          } else {
+            showToast('JSON inválido: faltan nodos o grupos');
+          }
+        } catch (_) { showToast('Archivo JSON no válido'); }
+      };
+      reader.readAsText(file);
+      ev.target.value = '';
+    });
+
+    // Templates Modal
+    function openTemplates() {
+      $('templates-grid').innerHTML = TEMPLATES.map(t => `
+        <button type="button" data-load-tpl="${esc(t.id)}" class="text-left p-3.5 rounded-lg border border-slate-200 hover:border-[#ED7100] hover:bg-orange-50/40 transition space-y-1">
+          <div class="text-xs font-bold text-slate-800">${esc(t.name)}</div>
+          <div class="text-[11px] text-slate-600 leading-snug">${esc(t.desc)}</div>
+        </button>`).join('');
+      $('modal-templates').classList.remove('hidden');
+    }
+    $('btn-templates').addEventListener('click', openTemplates);
+    $('close-templates').addEventListener('click', () => $('modal-templates').classList.add('hidden'));
+
+    $('templates-grid').addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-load-tpl]');
+      if (!btn) return;
+      const t = TEMPLATES.find(x => x.id === btn.dataset.loadTpl);
+      if (t) {
+        loadTemplateData(t.data);
+        $('modal-templates').classList.add('hidden');
+        showToast(`Cargada: ${t.name}`);
+      }
+    });
+
+    // Server Sync Modal
+    $('btn-server-sync').addEventListener('click', () => {
+      if ($('srv-save-name')) $('srv-save-name').value = state.title || '';
+      $('modal-server-sync').classList.remove('hidden');
+      fetchServerDiagrams();
+    });
+    $('close-server-sync').addEventListener('click', () => $('modal-server-sync').classList.add('hidden'));
+    $('btn-save-current-to-server').addEventListener('click', saveCurrentToServer);
+
+    // NLP Modal
+    $('btn-nlp').addEventListener('click', () => $('modal-nlp').classList.remove('hidden'));
+    $('close-nlp').addEventListener('click', () => $('modal-nlp').classList.add('hidden'));
+    $('cancel-nlp').addEventListener('click', () => $('modal-nlp').classList.add('hidden'));
+    $('run-nlp').addEventListener('click', () => {
+      const txt = $('nlp-input').value.trim();
+      if (!txt) { showToast('Ingresa una descripción'); return; }
+      generateFromText(txt);
+      $('modal-nlp').classList.add('hidden');
+    });
+    document.querySelectorAll('.nlp-preset').forEach(btn => {
+      btn.addEventListener('click', () => { $('nlp-input').value = btn.dataset.preset; });
+    });
+
+    // ==================== 13. LOGICA DE PRESENTACION, RELOJ Y LOGIN ====================
+    function formatLocalIsoDateTime(d) {
+      const pad2 = (n) => String(n).padStart(2, '0');
+      const offsetMin = -d.getTimezoneOffset();
+      const sign = offsetMin >= 0 ? '+' : '-';
+      const absH = pad2(Math.floor(Math.abs(offsetMin) / 60));
+      const absM = pad2(Math.abs(offsetMin) % 60);
+      return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())} UTC${sign}${absH}:${absM}`;
+    }
+
+    function updateLiveClock() {
+      const now = new Date();
+      const opts = { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+      const str = now.toLocaleString(undefined, opts);
+      const el = $('live-clock-text');
+      if (el) el.textContent = str;
+      const presTime = $('pres-timestamp');
+      if (presTime) presTime.textContent = formatLocalIsoDateTime(now);
+    }
+    setInterval(updateLiveClock, 1000);
+    updateLiveClock();
+
+    function updateUserDisplay() {
+      if (!$('header-avatar')) return;
+      $('header-avatar').textContent = (currentUser.name || 'U').charAt(0).toUpperCase();
+      const nameEl = $('header-user-name');
+      if (nameEl && nameEl.querySelector('span')) nameEl.querySelector('span').textContent = currentUser.name || 'Usuario';
+      $('header-user-role').textContent = currentUser.role || 'Invitado (Solo Lectura)';
+      $('header-status-dot').className = `w-1.5 h-1.5 rounded-full ${currentUser.loggedIn ? 'bg-emerald-400' : 'bg-amber-400'}`;
+    }
+
+    function refreshLoginModalStatus() {
+      const pill = $('login-status-pill');
+      const issued = $('login-issued-at');
+      if (pill) {
+        pill.textContent = currentUser.loggedIn ? 'ACTIVA' : 'INVITADO';
+        pill.className = `px-1.5 py-0.5 rounded font-bold ${currentUser.loggedIn ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`;
+      }
+      if (issued) {
+        const dt = currentUser.issuedAt ? new Date(currentUser.issuedAt) : new Date();
+        issued.textContent = `Emisión: ${formatLocalIsoDateTime(dt)} • Sesión Local`;
+      }
+      $('login-token-preview').textContent = currentUser.loggedIn ? `JWT: ${currentUser.token}` : 'JWT: (sin sesión autenticada)';
+    }
+
+    function stepSortValue(stepStr, fallbackIdx) {
+      const raw = String(stepStr ?? '').trim();
+      if (!raw) return [1, fallbackIdx, ''];
+      const m = raw.match(/^(\d+(?:\.\d+)?)(.*)$/);
+      if (m) return [0, parseFloat(m[1]), m[2].toLowerCase()];
+      return [0, fallbackIdx, raw.toLowerCase()];
+    }
+
+    function buildPresentationSteps() {
+      const indexed = state.edges.map((e, idx) => ({ e, idx, k: stepSortValue(e.step, idx) }));
+      indexed.sort((a, b) => {
+        if (a.k[0] !== b.k[0]) return a.k[0] - b.k[0];
+        if (a.k[1] !== b.k[1]) return a.k[1] - b.k[1];
+        if (a.k[2] !== b.k[2]) return a.k[2] < b.k[2] ? -1 : 1;
+        return a.idx - b.idx;
+      });
+
+      presState.steps = indexed.map(({ e }, idx) => {
+        const srcNode = state.nodes.find(n => n.id === e.source);
+        const dstNode = state.nodes.find(n => n.id === e.target);
+        return {
+          idx: idx + 1,
+          edge: e,
+          srcNode,
+          dstNode,
+          stepNum: e.step !== undefined && e.step !== '' ? e.step : String(idx + 1),
+          label: e.label || 'Flujo de Comunicación',
+          timestamp: new Date(Date.now() - (indexed.length - idx) * 35000).toLocaleTimeString()
+        };
+      });
+    }
+
+    function focusPresentationStep(s) {
+      if (!s || (!s.srcNode && !s.dstNode)) return;
+      const rect = svgEl.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const pts = [s.srcNode, s.dstNode].filter(Boolean);
+      const cx = pts.reduce((acc, n) => acc + n.x + (n.w || 64) / 2, 0) / pts.length;
+      const cy = pts.reduce((acc, n) => acc + n.y + (n.h || 64) / 2, 0) / pts.length;
+      state.panX = Math.round(rect.width / 2 - cx * state.zoom);
+      state.panY = Math.round(rect.height / 2 - cy * state.zoom);
+      updateTransform();
+    }
+
+    function updatePresCard() {
+      if (!presState.steps.length) return;
+      const s = presState.steps[presState.stepIdx];
+      $('pres-step-indicator').textContent = `${presState.stepIdx + 1} / ${presState.steps.length}`;
+      $('pres-step-num').textContent = s.stepNum;
+      $('pres-step-label').textContent = `Paso ${s.stepNum}: ${s.label}`;
+      $('pres-step-time').textContent = `Timestamp: ${s.timestamp}`;
+      $('pres-step-detail').textContent = `${s.srcNode ? s.srcNode.name : 'Inicio'} ➔ ${s.dstNode ? s.dstNode.name : 'Fin'}`;
+
+      let actor = 'Arquitectura General';
+      if (s.srcNode) {
+        const containing = state.groups.filter(g => s.srcNode.x >= g.x && s.srcNode.x <= g.x + g.w && s.srcNode.y >= g.y && s.srcNode.y <= g.y + g.h);
+        containing.sort((a, b) => (a.w * a.h) - (b.w * b.h));
+        const specificGrp = containing[0];
+        if (specificGrp) actor = `Zona: ${specificGrp.name}`;
+        else if (s.srcNode.sub1) actor = `Rol: ${s.srcNode.sub1.split('\n')[0]}`;
+      }
+      $('pres-step-actor').textContent = `Responsable: ${actor} • Presentador: ${currentUser.name} (${currentUser.role})`;
+      $('pres-diag-title').textContent = `${state.title || 'Arquitectura de Sistema'} — [${state.diagramType.toUpperCase()}]`;
+      focusPresentationStep(s);
+    }
+
+    function startPresentation() {
+      if (presState.active) return;
+      buildPresentationSteps();
+      if (!presState.steps.length) {
+        showToast('Agrega conexiones entre nodos para iniciar la presentación');
+        return;
+      }
+      presState.active = true;
+      presState.stepIdx = 0;
+      $('presentation-mode').classList.remove('hidden');
+      updatePresCard();
+      renderAll();
+      showToast('Modo Presentación activado. Usa flechas o Espacio');
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    }
+
+    function exitPresentation() {
+      presState.active = false;
+      if (presState.autoTimer) {
+        clearInterval(presState.autoTimer);
+        presState.autoTimer = null;
+        presState.autoPlay = false;
+        $('pres-btn-autoplay').textContent = '▶ Auto';
+      }
+      $('presentation-mode').classList.add('hidden');
+      fitToScreen();
+      renderAll();
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+      showToast('Presentación finalizada');
+    }
+
+    function nextPresStep() {
+      if (!presState.steps.length) return;
+      presState.stepIdx = (presState.stepIdx + 1) % presState.steps.length;
+      updatePresCard();
+      renderAll();
+    }
+
+    function prevPresStep() {
+      if (!presState.steps.length) return;
+      presState.stepIdx = (presState.stepIdx - 1 + presState.steps.length) % presState.steps.length;
+      updatePresCard();
+      renderAll();
+    }
+
+    function toggleAutoPlay() {
+      if (presState.autoPlay) {
+        clearInterval(presState.autoTimer);
+        presState.autoTimer = null;
+        presState.autoPlay = false;
+        $('pres-btn-autoplay').textContent = '▶ Auto';
+        showToast('Pausa automática');
+      } else {
+        presState.autoPlay = true;
+        $('pres-btn-autoplay').textContent = '⏸ Pausa';
+        presState.autoTimer = setInterval(nextPresStep, 3500);
+        showToast('Reproducción automática iniciada (3.5s)');
+      }
+    }
+
+    // Presentation HUD Buttons
+    $('btn-present').addEventListener('click', startPresentation);
+    $('pres-btn-next').addEventListener('click', nextPresStep);
+    $('pres-btn-prev').addEventListener('click', prevPresStep);
+    $('pres-btn-autoplay').addEventListener('click', toggleAutoPlay);
+    $('pres-btn-exit').addEventListener('click', exitPresentation);
+
+    // Login & Profile Modal
+    $('btn-login-profile').addEventListener('click', () => {
+      $('login-name').value = currentUser.name || '';
+      const roleSel = $('login-role');
+      const roleVal = currentUser.role || 'Staff Systems Architect';
+      if ([...roleSel.options].some(o => o.value === roleVal)) {
+        roleSel.value = roleVal;
+      } else {
+        roleSel.selectedIndex = 0;
+      }
+      $('login-rut').value = currentUser.rut || '';
+      refreshLoginModalStatus();
+      $('modal-login').classList.remove('hidden');
+    });
+    $('close-login').addEventListener('click', () => $('modal-login').classList.add('hidden'));
+
+    $('btn-save-login').addEventListener('click', () => {
+      const selectedRole = $('login-role').value;
+      const isGuest = selectedRole === 'Invitado (Solo Lectura)';
+      currentUser.name = $('login-name').value.trim() || 'Architect';
+      currentUser.role = selectedRole;
+      currentUser.rut = $('login-rut').value.trim() || 'ARCH-001';
+      currentUser.loggedIn = !isGuest;
+      currentUser.issuedAt = new Date().toISOString();
+      currentUser.token = isGuest ? '' : ('JWT-OPENARCH-' + Math.random().toString(36).substring(2, 10).toUpperCase());
+      try { localStorage.setItem('openarchitecto_user', JSON.stringify(currentUser)); } catch (_) {}
+      updateUserDisplay();
+      refreshLoginModalStatus();
+      $('modal-login').classList.add('hidden');
+      showToast(`Sesión actualizada: ${currentUser.name} (${currentUser.role})`);
+    });
+
+    $('btn-logout').addEventListener('click', () => {
+      currentUser.loggedIn = false;
+      currentUser.role = 'Invitado (Solo Lectura)';
+      currentUser.token = '';
+      currentUser.issuedAt = new Date().toISOString();
+      try { localStorage.setItem('openarchitecto_user', JSON.stringify(currentUser)); } catch (_) {}
+      updateUserDisplay();
+      refreshLoginModalStatus();
+      $('modal-login').classList.add('hidden');
+      showToast('Sesión cerrada (Modo Invitado)');
+    });
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') {
+        if (presState.active) { ev.preventDefault(); exitPresentation(); return; }
+        let closedModal = false;
+        ['modal-templates', 'modal-server-sync', 'modal-nlp', 'modal-login'].forEach(mid => {
+          const el = $(mid);
+          if (el && !el.classList.contains('hidden')) { el.classList.add('hidden'); closedModal = true; }
+        });
+        if (!$('export-dropdown').classList.contains('hidden')) {
+          $('export-dropdown').classList.add('hidden');
+          $('btn-export-menu').setAttribute('aria-expanded', 'false');
+          closedModal = true;
+        }
+        if (closedModal) return;
+      }
+
+      if (presState.active) {
+        if (ev.key === 'ArrowRight' || ev.key === ' ' || ev.key === 'PageDown') {
+          ev.preventDefault(); nextPresStep(); return;
+        }
+        if (ev.key === 'ArrowLeft' || ev.key === 'PageUp') {
+          ev.preventDefault(); prevPresStep(); return;
+        }
+        return;
+      }
+
+      if (ev.target.matches('input, textarea, select, [contenteditable]')) return;
+      if (ev.key === 'v' || ev.key === 'V') setTool('select');
+      if (ev.key === 'c' || ev.key === 'C') setTool('connect');
+      if (ev.key === 'p' || ev.key === 'P') { ev.preventDefault(); startPresentation(); }
+      if ((ev.key === 'z' || ev.key === 'Z') && (ev.ctrlKey || ev.metaKey)) {
+        ev.preventDefault();
+        if (ev.shiftKey) redo(); else undo();
+      }
+      if ((ev.key === 'y' || ev.key === 'Y') && (ev.ctrlKey || ev.metaKey)) {
+        ev.preventDefault(); redo();
+      }
+      if (ev.key === 'Delete' || ev.key === 'Backspace') {
+        if (state.selected) { ev.preventDefault(); deleteSelected(); }
+      }
+    });
+
+    // Initialize
+    updateUserDisplay();
+    if (!loadLocal()) {
+      loadTemplateData(TEMPLATES[0].data);
+    } else {
+      renderAll();
+      renderInspector();
+      fitToScreen();
+    }
+    renderCatalog();
+
+  })();
+  </script>
+</body>
+</html>

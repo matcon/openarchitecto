@@ -1,0 +1,52 @@
+{
+  "name": "openarchitecto",
+  "version": "2.1.0",
+  "description": "Cross-platform Multi-Domain Architecture Diagramming Suite (Multi-Cloud, BPMN 2.0, UML 2.5, C4 Model, ERD, Flowcharts) with MCP Server, Agent Skill, and Interactive Presentation Studio.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "bin": {
+    "openarchitecto-mcp": "./dist/mcp-server.js",
+    "openarchitecto-studio": "./dist/servidor.js",
+    "openarchitecto-install": "./scripts/install.mjs"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "agents",
+    "scripts/install.mjs",
+    "index.html",
+    "diagrams",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node ./dist/servidor.js",
+    "mcp": "node ./dist/mcp-server.js",
+    "dev": "bun --watch ./servidor.ts",
+    "setup": "node ./scripts/install.mjs",
+    "test": "node ./tests/e2e.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "architecture",
+    "diagrams",
+    "bpmn",
+    "uml",
+    "c4-model",
+    "drawio",
+    "aws",
+    "agent-skills"
+  ]
+}
